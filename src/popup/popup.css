@@ -96,3 +96,68 @@ body {
 .yqm-remove-button:hover {
   color: #0f0f0f;
 }
+
+.yqm-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.yqm-toolbar button {
+  flex: 1;
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid #d3d3d3;
+  border-radius: 4px;
+  background: #f9f9f9;
+  cursor: pointer;
+}
+
+.yqm-toolbar button:hover {
+  background: #efefef;
+}
+
+.yqm-section-heading {
+  font-weight: 500;
+  color: #606060;
+  margin: 14px 0 6px;
+  border-top: 1px solid #e5e5e5;
+  padding-top: 10px;
+}
+
+.yqm-playlist-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.yqm-playlist-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.yqm-playlist-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yqm-playlist-item button {
+  font-size: 11px;
+  border: 1px solid #d3d3d3;
+  border-radius: 4px;
+  background: #f9f9f9;
+  cursor: pointer;
+  padding: 3px 6px;
+  flex-shrink: 0;
+}
+
+.yqm-playlist-item button:hover {
+  background: #efefef;
+}

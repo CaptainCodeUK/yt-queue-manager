@@ -1,4 +1,4 @@
-import { ActiveQueue, QueueItem, VideoId } from './types';
+import { ActiveQueue, QueueItem, SavedPlaylist, VideoId, emptyActiveQueue } from './types';
 
 export type NewQueueItemInput = Omit<QueueItem, 'played' | 'addedAt' | 'position'>;
 
@@ -136,4 +136,30 @@ export function formatDuration(totalSeconds: number): string {
   const seconds = Math.floor(totalSeconds % 60);
   const pad = (n: number) => String(n).padStart(2, '0');
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+}
+
+/** Snapshots the current queue's items into a new named, reloadable playlist. */
+export function toSavedPlaylist(queue: ActiveQueue, name: string, playlistId: string): SavedPlaylist {
+  const now = Date.now();
+  return {
+    playlistId,
+    name,
+    createdAt: now,
+    updatedAt: now,
+    items: sortedByPosition(queue.items).map((item) => ({ ...item }))
+  };
+}
+
+/** Loads a saved playlist as the active queue. Played flags reset — a saved playlist is meant to be replayed fresh, unlike the active queue's played state during normal use. */
+export function loadPlaylist(playlist: SavedPlaylist): ActiveQueue {
+  const items = playlist.items.map((item) => ({ ...item, played: false }));
+  return {
+    ...emptyActiveQueue(),
+    items,
+    currentItemId: items[0]?.id ?? null
+  };
+}
+
+export function clearActiveQueue(): ActiveQueue {
+  return emptyActiveQueue();
 }
