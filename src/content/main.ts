@@ -4,6 +4,8 @@ import { createAddToQueueButton } from './add-to-queue-button';
 import { monitorWatchPageVideo } from './video-monitor';
 import { startThumbnailScanner, scanForThumbnails } from './thumbnail-scanner';
 import { startPanel } from './panel/panel';
+import { startNativeUiSuppression, runNativeUiSuppression } from './native-ui-suppress';
+import { startNativeMenuHook } from './native-menu-hook';
 
 const BUTTON_CONTAINER_ID = 'yqm-watch-page-button-container';
 
@@ -36,7 +38,10 @@ onYouTubeNavigate(() => {
   ensureWatchPageButton();
   scanForThumbnails();
   startPanel();
+  runNativeUiSuppression();
 });
 startThumbnailScanner();
+startNativeUiSuppression();
+startNativeMenuHook();
 
 console.log('[yt-queue-manager] content script loaded');
