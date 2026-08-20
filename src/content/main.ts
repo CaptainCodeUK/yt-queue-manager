@@ -1,6 +1,7 @@
 import { onYouTubeNavigate } from './navigation';
 import { getCurrentWatchPageInfo } from '../shared/youtube-parsing';
 import { createAddToQueueButton } from './add-to-queue-button';
+import { monitorWatchPageVideo } from './video-monitor';
 
 const BUTTON_CONTAINER_ID = 'yqm-watch-page-button-container';
 
@@ -25,6 +26,8 @@ function ensureWatchPageButton(): void {
     })
   );
   document.body.appendChild(container);
+
+  monitorWatchPageVideo(info.videoId);
 }
 
 onYouTubeNavigate(ensureWatchPageButton);
