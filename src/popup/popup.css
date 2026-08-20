@@ -1,0 +1,23 @@
+body {
+  width: 320px;
+  min-height: 120px;
+  margin: 0;
+  font-family: 'Roboto', Arial, sans-serif;
+  font-size: 13px;
+  color: #0f0f0f;
+}
+
+#app {
+  padding: 12px;
+}
+
+.empty-state {
+  color: #606060;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.totals {
+  color: #606060;
+  margin-bottom: 8px;
+}

@@ -1,0 +1,139 @@
+import { ActiveQueue, QueueItem, VideoId } from './types';
+
+export type NewQueueItemInput = Omit<QueueItem, 'played' | 'addedAt' | 'position'>;
+
+function nextPosition(items: QueueItem[]): number {
+  return items.reduce((max, item) => Math.max(max, item.position), -1) + 1;
+}
+
+function sortedByPosition(items: QueueItem[]): QueueItem[] {
+  return [...items].sort((a, b) => a.position - b.position);
+}
+
+/** Adds a video to the queue. No-op if the video is already present. */
+export function addItem(queue: ActiveQueue, input: NewQueueItemInput): ActiveQueue {
+  if (queue.items.some((item) => item.id === input.id)) {
+    return queue;
+  }
+  const newItem: QueueItem = {
+    ...input,
+    played: false,
+    addedAt: Date.now(),
+    position: nextPosition(queue.items)
+  };
+  return { ...queue, items: [...queue.items, newItem] };
+}
+
+export function removeItem(queue: ActiveQueue, id: VideoId): ActiveQueue {
+  const items = queue.items.filter((item) => item.id !== id);
+  const currentItemId = queue.currentItemId === id ? null : queue.currentItemId;
+  return { ...queue, items, currentItemId };
+}
+
+export function clearPlayed(queue: ActiveQueue): ActiveQueue {
+  const items = queue.items.filter((item) => !item.played);
+  const currentItemId =
+    queue.currentItemId !== null && !items.some((item) => item.id === queue.currentItemId)
+      ? null
+      : queue.currentItemId;
+  return { ...queue, items, currentItemId };
+}
+
+export function markPlayed(queue: ActiveQueue, id: VideoId, played = true): ActiveQueue {
+  const items = queue.items.map((item) => (item.id === id ? { ...item, played } : item));
+  return { ...queue, items };
+}
+
+export function updateDuration(
+  queue: ActiveQueue,
+  id: VideoId,
+  durationSeconds: number,
+  durationSource: QueueItem['durationSource']
+): ActiveQueue {
+  const items = queue.items.map((item) =>
+    item.id === id ? { ...item, durationSeconds, durationSource } : item
+  );
+  return { ...queue, items };
+}
+
+/**
+ * Reorders the queue given a full list of ids in their new order. Ids not
+ * present in `orderedIds` keep their relative order, appended after.
+ */
+export function reorder(queue: ActiveQueue, orderedIds: VideoId[]): ActiveQueue {
+  const byId = new Map(queue.items.map((item) => [item.id, item]));
+  const ordered: QueueItem[] = [];
+  orderedIds.forEach((id) => {
+    const item = byId.get(id);
+    if (item) {
+      ordered.push(item);
+      byId.delete(id);
+    }
+  });
+  const remaining = sortedByPosition([...byId.values()]);
+  const items = [...ordered, ...remaining].map((item, index) => ({ ...item, position: index }));
+  return { ...queue, items };
+}
+
+/** Returns the next unplayed item strictly after `afterId` in queue order, or the first unplayed item if `afterId` is null/not found. */
+export function nextUnplayed(queue: ActiveQueue, afterId: VideoId | null): QueueItem | null {
+  const ordered = sortedByPosition(queue.items);
+  const startIndex = afterId ? ordered.findIndex((item) => item.id === afterId) : -1;
+  const searchFrom = startIndex === -1 ? 0 : startIndex + 1;
+  for (let i = searchFrom; i < ordered.length; i++) {
+    if (!ordered[i].played) return ordered[i];
+  }
+  return null;
+}
+
+/** Marks the given item played and advances currentItemId to the next unplayed item. */
+export function advance(queue: ActiveQueue, finishedItemId: VideoId): { queue: ActiveQueue; next: QueueItem | null } {
+  const played = markPlayed(queue, finishedItemId, true);
+  const next = nextUnplayed(played, finishedItemId);
+  return { queue: { ...played, currentItemId: next?.id ?? null }, next };
+}
+
+export interface QueueTotals {
+  totalSeconds: number;
+  totalUnknownCount: number;
+  remainingSeconds: number;
+  remainingUnknownCount: number;
+}
+
+export function computeTotals(queue: ActiveQueue): QueueTotals {
+  const ordered = sortedByPosition(queue.items);
+  let totalSeconds = 0;
+  let totalUnknownCount = 0;
+  let remainingSeconds = 0;
+  let remainingUnknownCount = 0;
+
+  const currentIndex = queue.currentItemId
+    ? ordered.findIndex((item) => item.id === queue.currentItemId)
+    : -1;
+
+  ordered.forEach((item, index) => {
+    if (item.durationSeconds === null) {
+      totalUnknownCount++;
+    } else {
+      totalSeconds += item.durationSeconds;
+    }
+    const isFromCurrentOnward = currentIndex === -1 || index >= currentIndex;
+    if (isFromCurrentOnward && !item.played) {
+      if (item.durationSeconds === null) {
+        remainingUnknownCount++;
+      } else {
+        remainingSeconds += item.durationSeconds;
+      }
+    }
+  });
+
+  return { totalSeconds, totalUnknownCount, remainingSeconds, remainingUnknownCount };
+}
+
+export function formatDuration(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+}
