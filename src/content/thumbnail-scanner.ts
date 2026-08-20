@@ -1,0 +1,116 @@
+import { createAddToQueueButton } from './add-to-queue-button';
+import { QueueItem } from '../shared/types';
+
+/**
+ * Allowlist of thumbnail-bearing containers across youtube.com. Unknown
+ * elements are never treated as thumbnails — fail open rather than guess.
+ */
+const THUMBNAIL_SELECTORS = [
+  'ytd-rich-item-renderer', // home feed grid
+  'ytd-video-renderer', // search results
+  'ytd-compact-video-renderer', // watch-page sidebar suggestions
+  'ytd-grid-video-renderer', // channel video grids (older layout)
+  'ytd-playlist-video-renderer' // playlist page rows
+].join(',');
+
+const PROCESSED_ATTR = 'data-yqm-processed';
+const OVERLAY_CLASS = 'yqm-thumb-overlay';
+
+type ThumbnailInfo = Pick<
+  QueueItem,
+  'id' | 'title' | 'channelName' | 'thumbnailUrl' | 'durationSeconds' | 'durationSource'
+>;
+
+function extractVideoId(container: Element): string | null {
+  const anchor = container.querySelector<HTMLAnchorElement>(
+    'a#thumbnail, a#video-title, a[href*="/watch?v="]'
+  );
+  const href = anchor?.getAttribute('href');
+  if (!href) return null;
+  try {
+    return new URL(href, location.origin).searchParams.get('v');
+  } catch {
+    return null;
+  }
+}
+
+function extractTitle(container: Element): string {
+  return container.querySelector('#video-title')?.textContent?.trim() ?? '';
+}
+
+function extractChannelName(container: Element): string {
+  return (
+    container.querySelector('ytd-channel-name #text, #channel-name #text, #byline')?.textContent?.trim() ?? ''
+  );
+}
+
+/** Parses a rendered duration badge (e.g. "12:34" or "1:02:03") into seconds. Best-effort fallback only — see duration-resolution notes in the plan. */
+function extractDurationSeconds(container: Element): number | null {
+  const text = container
+    .querySelector('ytd-thumbnail-overlay-time-status-renderer #text')
+    ?.textContent?.trim();
+  if (!text) return null;
+  const parts = text.split(':').map((part) => parseInt(part, 10));
+  if (parts.length === 0 || parts.some((part) => Number.isNaN(part))) return null;
+  return parts.reduce((total, part) => total * 60 + part, 0);
+}
+
+function buildThumbnailInfo(container: Element, videoId: string): ThumbnailInfo {
+  return {
+    id: videoId,
+    title: extractTitle(container),
+    channelName: extractChannelName(container),
+    thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+    durationSeconds: extractDurationSeconds(container),
+    durationSource: 'domBadge'
+  };
+}
+
+function injectButton(container: Element, info: ThumbnailInfo): void {
+  const host = container.querySelector<HTMLElement>('ytd-thumbnail, #thumbnail') ?? (container as HTMLElement);
+  if (getComputedStyle(host).position === 'static') {
+    host.style.position = 'relative';
+  }
+  const button = createAddToQueueButton(info);
+  button.classList.add(OVERLAY_CLASS);
+  host.appendChild(button);
+}
+
+function processContainer(container: Element): void {
+  if (container.hasAttribute(PROCESSED_ATTR)) return;
+  const videoId = extractVideoId(container);
+  if (!videoId) return;
+  container.setAttribute(PROCESSED_ATTR, 'true');
+  injectButton(container, buildThumbnailInfo(container, videoId));
+}
+
+export function scanForThumbnails(root: ParentNode = document): void {
+  root.querySelectorAll(THUMBNAIL_SELECTORS).forEach(processContainer);
+}
+
+let observer: MutationObserver | null = null;
+let scanScheduled = false;
+
+function scheduleScan(): void {
+  if (scanScheduled) return;
+  scanScheduled = true;
+  const run = () => {
+    scanScheduled = false;
+    scanForThumbnails();
+  };
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void })
+    .requestIdleCallback;
+  if (ric) {
+    ric(run, { timeout: 500 });
+  } else {
+    window.requestAnimationFrame(run);
+  }
+}
+
+/** Starts the MutationObserver-based scan. Safe to call once; also worth re-invoking `scanForThumbnails()` directly after SPA navigation as a redundant safety net. */
+export function startThumbnailScanner(): void {
+  scanForThumbnails();
+  if (observer) return;
+  observer = new MutationObserver(scheduleScan);
+  observer.observe(document.body, { childList: true, subtree: true });
+}
