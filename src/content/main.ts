@@ -3,6 +3,7 @@ import { getCurrentWatchPageInfo } from '../shared/youtube-parsing';
 import { createAddToQueueButton } from './add-to-queue-button';
 import { monitorWatchPageVideo } from './video-monitor';
 import { startThumbnailScanner, scanForThumbnails } from './thumbnail-scanner';
+import { startPanel } from './panel/panel';
 
 const BUTTON_CONTAINER_ID = 'yqm-watch-page-button-container';
 
@@ -34,6 +35,7 @@ function ensureWatchPageButton(): void {
 onYouTubeNavigate(() => {
   ensureWatchPageButton();
   scanForThumbnails();
+  startPanel();
 });
 startThumbnailScanner();
 
