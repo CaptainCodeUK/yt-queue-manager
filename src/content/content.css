@@ -1,1 +1,28 @@
-/* Overlay button and in-page panel styles are added in later phases. */
+.yqm-watch-page-button-container {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2200;
+}
+
+.yqm-add-to-queue-button {
+  font-family: 'Roboto', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background-color: #cc0000;
+  border: none;
+  border-radius: 18px;
+  padding: 8px 16px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.yqm-add-to-queue-button:hover {
+  background-color: #a30000;
+}
+
+.yqm-add-to-queue-button:disabled {
+  background-color: #4caf50;
+  cursor: default;
+}
