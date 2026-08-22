@@ -5,68 +5,155 @@ import { sendMessage } from '../../shared/messaging';
 import { ActiveQueue } from '../../shared/types';
 import panelCss from './panel.css?inline';
 
-const PANEL_HOST_ID = 'yqm-panel-host';
+const HOST_ID = 'yqm-header-host';
+const CREATE_LABEL_PATTERN = /^create$/i;
+
+function findButtonsContainer(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('ytd-masthead #end #buttons');
+}
+
+/** Finds the "+ Create" button so our button can be inserted just before it. Fails open: returns null (caller falls back to prepending) rather than guessing at an unfamiliar element. */
+function findCreateButton(container: HTMLElement): Element | null {
+  const candidates = container.querySelectorAll('ytd-button-renderer, a, button');
+  for (const el of candidates) {
+    const label = (el.getAttribute('aria-label') ?? el.textContent ?? '').trim();
+    if (CREATE_LABEL_PATTERN.test(label)) {
+      return el.closest('ytd-button-renderer') ?? el;
+    }
+  }
+  return null;
+}
 
 let listContainer: HTMLElement | null = null;
-let initialized = false;
+let dropdown: HTMLElement | null = null;
+let toggleButton: HTMLButtonElement | null = null;
+let badge: HTMLElement | null = null;
+let latestQueue: ActiveQueue | null = null;
+let subscribed = false;
+let mastheadObserver: MutationObserver | null = null;
 
-function mountPanel(): void {
-  if (document.getElementById(PANEL_HOST_ID)) return;
+function positionDropdown(): void {
+  if (!toggleButton || !dropdown) return;
+  const rect = toggleButton.getBoundingClientRect();
+  dropdown.style.top = `${rect.bottom + 8}px`;
+  dropdown.style.right = `${window.innerWidth - rect.right}px`;
+}
 
-  const host = document.createElement('div');
-  host.id = PANEL_HOST_ID;
-  document.body.appendChild(host);
+function closeDropdown(): void {
+  dropdown?.classList.remove('yqm-open');
+}
 
-  const shadowRoot = host.attachShadow({ mode: 'open' });
-  const style = document.createElement('style');
-  style.textContent = panelCss;
-  shadowRoot.appendChild(style);
+function toggleDropdown(): void {
+  if (!dropdown) return;
+  const opening = !dropdown.classList.contains('yqm-open');
+  if (opening) positionDropdown();
+  dropdown.classList.toggle('yqm-open', opening);
+}
 
-  const panel = document.createElement('div');
-  panel.className = 'yqm-panel';
-  shadowRoot.appendChild(panel);
-
-  const header = document.createElement('div');
-  header.className = 'yqm-panel-header';
-  header.textContent = 'Queue';
-  const toggle = document.createElement('button');
-  toggle.type = 'button';
-  toggle.className = 'yqm-panel-toggle';
-  toggle.textContent = '▾';
-  header.appendChild(toggle);
-  panel.appendChild(header);
-
-  const content = document.createElement('div');
-  content.className = 'yqm-panel-content';
-  panel.appendChild(content);
-
-  listContainer = document.createElement('div');
-  content.appendChild(listContainer);
-
-  let collapsed = false;
-  const toggleCollapsed = () => {
-    collapsed = !collapsed;
-    content.style.display = collapsed ? 'none' : '';
-    toggle.textContent = collapsed ? '▸' : '▾';
-  };
-  header.addEventListener('click', toggleCollapsed);
+function onDocumentClickCapture(event: MouseEvent): void {
+  if (!dropdown?.classList.contains('yqm-open')) return;
+  const target = event.target as Node | null;
+  if (!target) return;
+  if (dropdown.contains(target) || toggleButton?.contains(target)) return;
+  closeDropdown();
 }
 
 function render(queue: ActiveQueue): void {
-  if (!listContainer) return;
+  latestQueue = queue;
+  if (!listContainer || !badge) return;
+
   renderQueueList(listContainer, queue, {
     onReorder: (orderedIds) => void updateActiveQueue((q) => reorder(q, orderedIds)),
     onRemove: (id) => void updateActiveQueue((q) => removeItem(q, id)),
     onPlayNow: (id) => void sendMessage({ type: 'navigateToVideo', videoId: id }),
     onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q))
   });
+
+  const unplayedCount = queue.items.filter((item) => !item.played).length;
+  badge.textContent = String(unplayedCount);
+  badge.hidden = unplayedCount === 0;
 }
 
-/** Idempotent: safe to call on every SPA navigation, since document.body normally survives YouTube's route changes but this guards against the rare case it doesn't. */
+/**
+ * Builds and inserts the header button + dropdown. YouTube's masthead is
+ * initially skeleton-rendered (placeholder icons, no real buttons yet) and
+ * gets rebuilt once real content hydrates — which silently discards
+ * anything inserted into it beforehand. So this doesn't just run once:
+ * `ensureMounted` below re-invokes it whenever the host has gone missing.
+ */
+function mountHeaderButton(): boolean {
+  const buttonsContainer = findButtonsContainer();
+  if (!buttonsContainer) return false;
+
+  const host = document.createElement('div');
+  host.id = HOST_ID;
+  host.style.display = 'inline-flex';
+  host.style.alignItems = 'center';
+
+  const createButton = findCreateButton(buttonsContainer);
+  if (createButton) {
+    buttonsContainer.insertBefore(host, createButton);
+  } else {
+    buttonsContainer.prepend(host);
+  }
+
+  const shadowRoot = host.attachShadow({ mode: 'open' });
+  const style = document.createElement('style');
+  style.textContent = panelCss;
+  shadowRoot.appendChild(style);
+
+  toggleButton = document.createElement('button');
+  toggleButton.type = 'button';
+  toggleButton.className = 'yqm-header-button';
+  toggleButton.innerHTML =
+    '<span class="yqm-header-icon">+</span><span>Queue</span><span class="yqm-header-badge" hidden></span>';
+  toggleButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    toggleDropdown();
+  });
+  shadowRoot.appendChild(toggleButton);
+  badge = toggleButton.querySelector('.yqm-header-badge');
+
+  dropdown = document.createElement('div');
+  dropdown.className = 'yqm-dropdown';
+  shadowRoot.appendChild(dropdown);
+
+  listContainer = document.createElement('div');
+  dropdown.appendChild(listContainer);
+
+  if (latestQueue) render(latestQueue);
+
+  return true;
+}
+
+function ensureMounted(): void {
+  if (document.getElementById(HOST_ID)) return;
+  mountHeaderButton();
+}
+
+/**
+ * Mounts the header button/dropdown and keeps it mounted. Uses a
+ * MutationObserver rather than a one-shot retry: the masthead can render
+ * (and re-render, wiping earlier children) at any point, not just once
+ * early on, so this re-checks on every relevant DOM change — the same
+ * resilience pattern used for thumbnail scanning and the watch-page
+ * button elsewhere in this content script.
+ */
 export function startPanel(): void {
-  mountPanel();
-  if (initialized) return;
-  initialized = true;
-  getActiveQueue().then(render);
-  subscribe('activeQueue', render);
+  ensureMounted();
+
+  if (!mastheadObserver) {
+    mastheadObserver = new MutationObserver(ensureMounted);
+    mastheadObserver.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('click', onDocumentClickCapture, { capture: true });
+    window.addEventListener('resize', () => {
+      if (dropdown?.classList.contains('yqm-open')) positionDropdown();
+    });
+  }
+
+  if (!subscribed) {
+    subscribed = true;
+    getActiveQueue().then(render);
+    subscribe('activeQueue', render);
+  }
 }
