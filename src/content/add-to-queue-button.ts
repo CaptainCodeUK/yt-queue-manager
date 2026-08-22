@@ -7,6 +7,16 @@ export type AddButtonVideoInfo = Pick<
   'id' | 'title' | 'channelName' | 'channelId' | 'thumbnailUrl' | 'durationSeconds' | 'durationSource'
 >;
 
+/**
+ * Shared label/icon so every entry point (thumbnail overlay, watch-page
+ * button, injected menu item) reads as the same, unmistakably-ours action —
+ * deliberately distinct from YouTube's own "Add to queue" wording so the
+ * two aren't confused for each other.
+ */
+export const ADD_TO_QUEUE_ICON = '➕';
+export const ADD_TO_QUEUE_LABEL = 'Add to My Queue';
+export const ADDED_LABEL = 'Added ✓';
+
 export async function addVideoToQueue(info: AddButtonVideoInfo): Promise<void> {
   await updateActiveQueue((queue) => addItem(queue, info));
 }
@@ -15,7 +25,7 @@ export function createAddToQueueButton(info: AddButtonVideoInfo): HTMLButtonElem
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'yqm-add-to-queue-button';
-  button.textContent = '+ Add to queue';
+  button.textContent = `${ADD_TO_QUEUE_ICON} ${ADD_TO_QUEUE_LABEL}`;
 
   button.addEventListener(
     'click',
@@ -24,11 +34,11 @@ export function createAddToQueueButton(info: AddButtonVideoInfo): HTMLButtonElem
       event.stopPropagation();
       if (button.disabled) return;
       button.disabled = true;
-      button.textContent = 'Added ✓';
+      button.textContent = ADDED_LABEL;
       await addVideoToQueue(info);
       setTimeout(() => {
         button.disabled = false;
-        button.textContent = '+ Add to queue';
+        button.textContent = `${ADD_TO_QUEUE_ICON} ${ADD_TO_QUEUE_LABEL}`;
       }, 1500);
     },
     { capture: true }

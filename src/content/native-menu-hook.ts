@@ -1,4 +1,4 @@
-import { addVideoToQueue } from './add-to-queue-button';
+import { addVideoToQueue, ADD_TO_QUEUE_ICON, ADD_TO_QUEUE_LABEL } from './add-to-queue-button';
 import {
   THUMBNAIL_CARD_SELECTOR,
   WATCH_PAGE_CONTAINER_SELECTOR,
@@ -54,7 +54,7 @@ function injectMenuItem(popup: Element): void {
   const item = document.createElement('div');
   item.className = MENU_ITEM_CLASS;
   item.setAttribute('role', 'menuitem');
-  item.innerHTML = `<span class="yqm-menu-item-icon">➕</span><span>Add to Queue</span>`;
+  item.innerHTML = `<span class="yqm-menu-item-icon">${ADD_TO_QUEUE_ICON}</span><span>${ADD_TO_QUEUE_LABEL}</span>`;
   item.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
