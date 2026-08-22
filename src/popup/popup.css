@@ -109,6 +109,31 @@ body {
   color: #0f0f0f;
 }
 
+.yqm-queue-item.played .yqm-item-thumb {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.yqm-footer {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.yqm-footer-link {
+  font-size: 11px;
+  color: #606060;
+  text-decoration: none;
+}
+
+.yqm-footer-link:hover {
+  color: #5e35b1;
+  text-decoration: underline;
+}
+
 .yqm-toolbar {
   display: flex;
   gap: 8px;

@@ -1,13 +1,10 @@
 import { ExtensionMessage, ClaimDriverResponse } from '../shared/messaging';
 import { getActiveQueue, updateActiveQueue, setValue } from '../shared/storage';
+import { watchUrl } from '../shared/youtube-parsing';
 
 // Background service worker. Holds no authoritative in-memory state — MV3
 // service workers are killed/restarted at will, so chrome.storage.local is
 // always re-read on each event, never trusted from module-level variables.
-
-function watchUrl(videoId: string): string {
-  return `https://www.youtube.com/watch?v=${videoId}`;
-}
 
 async function claimDriver(tabId: number, windowId: number): Promise<ClaimDriverResponse> {
   await updateActiveQueue((queue) => ({
@@ -31,22 +28,80 @@ async function heartbeat(tabId: number): Promise<void> {
   await setValue('driverHeartbeatAt', Date.now());
 }
 
-/** Navigates the current driving tab to `videoId`, or opens/reuses a tab and claims it as driver if none exists or the known driving tab is gone. */
+/** The currently active tab, if it's already on YouTube — reusing it beats opening a new tab. */
+async function activeYouTubeTab(): Promise<chrome.tabs.Tab | undefined> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab?.url?.startsWith('https://www.youtube.com/') ? tab : undefined;
+}
+
+/**
+ * Tries to navigate `tabId` to `videoId` through YouTube's own SPA router
+ * (a synthetic link click, injected into the page) instead of a full
+ * reload — mirrors `spaNavigate` in the content script, duplicated here
+ * because injected functions can't import shared modules. Returns whether
+ * it actually worked, so the caller can fall back to a real navigation.
+ */
+async function spaNavigateTab(tabId: number, videoId: string): Promise<boolean> {
+  try {
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (id: string) => {
+        const before = location.href;
+        const anchor = document.createElement('a');
+        anchor.href = `/watch?v=${id}`;
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        return new Promise<boolean>((resolve) => {
+          window.setTimeout(() => resolve(location.href !== before), 800);
+        });
+      },
+      args: [videoId]
+    });
+    return result === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Navigates `tab` to `videoId` in place (SPA transition, falling back to a full reload) and claims it as driver. */
+async function navigateExistingTab(tab: chrome.tabs.Tab, videoId: string): Promise<void> {
+  if (tab.id === undefined) return;
+  await chrome.tabs.update(tab.id, { active: true });
+  if (!(await spaNavigateTab(tab.id, videoId))) {
+    await chrome.tabs.update(tab.id, { url: watchUrl(videoId) });
+  }
+  if (tab.windowId !== undefined) {
+    await claimDriver(tab.id, tab.windowId);
+  }
+}
+
+/**
+ * Navigates to `videoId`, preferring the existing driving tab or the
+ * current YouTube tab over opening a new one, and preferring an in-page
+ * SPA transition over a full reload.
+ */
 async function navigateToVideo(videoId: string): Promise<void> {
   const queue = await getActiveQueue();
-  const url = watchUrl(videoId);
 
   if (queue.drivingTabId !== null) {
     try {
       const tab = await chrome.tabs.get(queue.drivingTabId);
-      await chrome.tabs.update(tab.id!, { url, active: true });
+      await navigateExistingTab(tab, videoId);
       return;
     } catch {
-      // Driving tab no longer exists — fall through to opening a new one.
+      // Driving tab no longer exists — fall through.
     }
   }
 
-  const tab = await chrome.tabs.create({ url, active: true });
+  const currentYouTubeTab = await activeYouTubeTab();
+  if (currentYouTubeTab) {
+    await navigateExistingTab(currentYouTubeTab, videoId);
+    return;
+  }
+
+  const tab = await chrome.tabs.create({ url: watchUrl(videoId), active: true });
   if (tab.id !== undefined && tab.windowId !== undefined) {
     await claimDriver(tab.id, tab.windowId);
   }

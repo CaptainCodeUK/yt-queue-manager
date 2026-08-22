@@ -23,6 +23,10 @@ export interface WatchPageVideoInfo {
   durationSeconds: number | null;
 }
 
+export function watchUrl(videoId: string): string {
+  return `https://www.youtube.com/watch?v=${videoId}`;
+}
+
 /** Returns the video id from the URL if the current page is a watch page, else null. */
 export function getCurrentVideoId(): string | null {
   if (location.pathname !== '/watch') return null;

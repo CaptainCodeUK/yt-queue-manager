@@ -2,16 +2,14 @@ import { getActiveQueue, updateActiveQueue, getSettings } from '../shared/storag
 import { advance, updateDuration } from '../shared/queue-engine';
 import { sendMessage } from '../shared/messaging';
 import { ClaimDriverResponse } from '../shared/messaging';
+import { watchUrl } from '../shared/youtube-parsing';
+import { spaNavigate } from './navigation';
 
 const HEARTBEAT_INTERVAL_MS = 15000;
 
 let myTabId: number | null = null;
 let heartbeatTimer: number | undefined;
 let currentController: AbortController | null = null;
-
-function watchUrl(videoId: string): string {
-  return `https://www.youtube.com/watch?v=${videoId}`;
-}
 
 function startHeartbeat(): void {
   if (heartbeatTimer !== undefined) return;
@@ -75,7 +73,7 @@ async function handleEnded(videoId: string): Promise<void> {
   disableNativeAutonav();
 
   if (next) {
-    location.href = watchUrl(next.id);
+    spaNavigate(watchUrl(next.id));
   }
 }
 

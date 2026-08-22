@@ -1,12 +1,17 @@
 import { getActiveQueue, subscribe, updateActiveQueue } from '../../shared/storage';
 import { removeItem, reorder, clearPlayed, clearActiveQueue } from '../../shared/queue-engine';
 import { renderQueueList } from '../../shared/queue-list-view';
-import { sendMessage } from '../../shared/messaging';
 import { ActiveQueue } from '../../shared/types';
+import { watchUrl } from '../../shared/youtube-parsing';
+import { spaNavigate } from '../navigation';
 import panelCss from './panel.css?inline';
 
 const HOST_ID = 'yqm-header-host';
 const CREATE_LABEL_PATTERN = /^create$/i;
+const FOOTER_LINKS = [
+  { href: 'https://rubberduck.works', label: 'rubberduck.works' },
+  { href: 'https://ko-fi.com/captaincodeuk', label: 'Ko-fi' }
+];
 
 function findButtonsContainer(): HTMLElement | null {
   return document.querySelector<HTMLElement>('ytd-masthead #end #buttons');
@@ -31,6 +36,7 @@ let badge: HTMLElement | null = null;
 let latestQueue: ActiveQueue | null = null;
 let subscribed = false;
 let mastheadObserver: MutationObserver | null = null;
+let lastCurrentItemId: string | null = null;
 
 function positionDropdown(): void {
   if (!toggleButton || !dropdown) return;
@@ -43,11 +49,16 @@ function closeDropdown(): void {
   dropdown?.classList.remove('yqm-open');
 }
 
+function scrollCurrentIntoView(): void {
+  listContainer?.querySelector('.yqm-queue-item.current')?.scrollIntoView({ block: 'nearest' });
+}
+
 function toggleDropdown(): void {
   if (!dropdown) return;
   const opening = !dropdown.classList.contains('yqm-open');
   if (opening) positionDropdown();
   dropdown.classList.toggle('yqm-open', opening);
+  if (opening) scrollCurrentIntoView();
 }
 
 function onDocumentClickCapture(event: MouseEvent): void {
@@ -64,12 +75,19 @@ function render(queue: ActiveQueue): void {
   latestQueue = queue;
   if (!listContainer || !badge) return;
 
+  const currentChanged = queue.currentItemId !== lastCurrentItemId;
+  lastCurrentItemId = queue.currentItemId;
+
   renderQueueList(listContainer, queue, {
     onReorder: (orderedIds) => void updateActiveQueue((q) => reorder(q, orderedIds)),
     onRemove: (id) => void updateActiveQueue((q) => removeItem(q, id)),
-    onPlayNow: (id) => void sendMessage({ type: 'navigateToVideo', videoId: id }),
+    onPlayNow: (id) => spaNavigate(watchUrl(id)),
     onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q))
   });
+
+  if (currentChanged && dropdown?.classList.contains('yqm-open')) {
+    scrollCurrentIntoView();
+  }
 
   const unplayedCount = queue.items.filter((item) => !item.played).length;
   badge.textContent = String(unplayedCount);
@@ -132,6 +150,19 @@ function mountHeaderButton(): boolean {
 
   listContainer = document.createElement('div');
   dropdown.appendChild(listContainer);
+
+  const footer = document.createElement('div');
+  footer.className = 'yqm-panel-footer';
+  FOOTER_LINKS.forEach(({ href, label }) => {
+    const link = document.createElement('a');
+    link.className = 'yqm-footer-link';
+    link.href = href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = label;
+    footer.appendChild(link);
+  });
+  dropdown.appendChild(footer);
 
   if (latestQueue) render(latestQueue);
 

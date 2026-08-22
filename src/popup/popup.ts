@@ -16,6 +16,7 @@ function renderQueue(queue: ActiveQueue): void {
     onPlayNow: (id) => void sendMessage({ type: 'navigateToVideo', videoId: id }),
     onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q))
   });
+  queueSection.querySelector('.yqm-queue-item.current')?.scrollIntoView({ block: 'nearest' });
 }
 
 function renderPlaylists(playlists: SavedPlaylist[]): void {
