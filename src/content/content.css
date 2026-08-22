@@ -1,6 +1,9 @@
 :root {
-  --yqm-accent: #7c4dff;
-  --yqm-accent-hover: #6c3ce8;
+  --yqm-accent: #7e57c2;
+  --yqm-accent-hover: #6a42b0;
+  --yqm-accent-text: #5e35b1;
+  --yqm-menu-bg: #ffffff;
+  --yqm-menu-hover-bg: #f1e9fb;
 }
 
 .yqm-watch-page-button-container {
@@ -52,6 +55,9 @@ yt-thumbnail-view-model:hover .yqm-thumb-overlay {
   opacity: 1;
 }
 
+/* Solid, hardcoded backgrounds throughout — YouTube's own theme variables
+   are not reliably opaque in this context (that's what caused the
+   see-through hover state), so we don't depend on them here. */
 .yqm-menu-item {
   display: flex;
   align-items: center;
@@ -60,18 +66,20 @@ yt-thumbnail-view-model:hover .yqm-thumb-overlay {
   font-family: 'Roboto', Arial, sans-serif;
   font-size: 14px;
   font-weight: 500;
-  color: var(--yqm-accent);
-  background-color: var(--yt-spec-menu-background, var(--yt-spec-general-background-a, #fff));
+  color: var(--yqm-accent-text);
+  background-color: var(--yqm-menu-bg);
   border-left: 3px solid var(--yqm-accent);
   cursor: pointer;
 }
 
 .yqm-menu-item:hover {
-  background-color: var(--yt-spec-badge-chip-background, rgba(124, 77, 255, 0.08));
+  background-color: var(--yqm-menu-hover-bg);
 }
 
 .yqm-menu-item-icon {
   font-size: 16px;
+  font-weight: 700;
   width: 20px;
   text-align: center;
+  color: inherit;
 }

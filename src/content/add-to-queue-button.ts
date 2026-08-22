@@ -13,7 +13,7 @@ export type AddButtonVideoInfo = Pick<
  * deliberately distinct from YouTube's own "Add to queue" wording so the
  * two aren't confused for each other.
  */
-export const ADD_TO_QUEUE_ICON = '➕';
+export const ADD_TO_QUEUE_ICON = '+';
 export const ADD_TO_QUEUE_LABEL = 'Add to My Queue';
 export const ADDED_LABEL = 'Added ✓';
 
