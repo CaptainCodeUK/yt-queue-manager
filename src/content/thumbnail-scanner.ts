@@ -1,17 +1,13 @@
 import { createAddToQueueButton } from './add-to-queue-button';
 import { QueueItem } from '../shared/types';
-
-/**
- * Allowlist of thumbnail-bearing containers across youtube.com. Unknown
- * elements are never treated as thumbnails — fail open rather than guess.
- */
-const THUMBNAIL_SELECTORS = [
-  'ytd-rich-item-renderer', // home feed grid
-  'ytd-video-renderer', // search results
-  'ytd-compact-video-renderer', // watch-page sidebar suggestions
-  'ytd-grid-video-renderer', // channel video grids (older layout)
-  'ytd-playlist-video-renderer' // playlist page rows
-].join(',');
+import {
+  THUMBNAIL_CARD_SELECTOR,
+  extractVideoIdFromHref,
+  findThumbnailAnchor,
+  findThumbnailHost,
+  extractCardTitle,
+  extractCardChannelName
+} from '../shared/youtube-parsing';
 
 const PROCESSED_ATTR = 'data-yqm-processed';
 const OVERLAY_CLASS = 'yqm-thumb-overlay';
@@ -21,33 +17,10 @@ type ThumbnailInfo = Pick<
   'id' | 'title' | 'channelName' | 'thumbnailUrl' | 'durationSeconds' | 'durationSource'
 >;
 
-function extractVideoId(container: Element): string | null {
-  const anchor = container.querySelector<HTMLAnchorElement>(
-    'a#thumbnail, a#video-title, a[href*="/watch?v="]'
-  );
-  const href = anchor?.getAttribute('href');
-  if (!href) return null;
-  try {
-    return new URL(href, location.origin).searchParams.get('v');
-  } catch {
-    return null;
-  }
-}
-
-function extractTitle(container: Element): string {
-  return container.querySelector('#video-title')?.textContent?.trim() ?? '';
-}
-
-function extractChannelName(container: Element): string {
-  return (
-    container.querySelector('ytd-channel-name #text, #channel-name #text, #byline')?.textContent?.trim() ?? ''
-  );
-}
-
 /** Parses a rendered duration badge (e.g. "12:34" or "1:02:03") into seconds. Best-effort fallback only — see duration-resolution notes in the plan. */
 function extractDurationSeconds(container: Element): number | null {
   const text = container
-    .querySelector('ytd-thumbnail-overlay-time-status-renderer #text')
+    .querySelector('ytd-thumbnail-overlay-time-status-renderer #text, .badge-shape-wiz__text')
     ?.textContent?.trim();
   if (!text) return null;
   const parts = text.split(':').map((part) => parseInt(part, 10));
@@ -55,11 +28,11 @@ function extractDurationSeconds(container: Element): number | null {
   return parts.reduce((total, part) => total * 60 + part, 0);
 }
 
-function buildThumbnailInfo(container: Element, videoId: string): ThumbnailInfo {
+function buildThumbnailInfo(container: Element, videoId: string, anchor: HTMLAnchorElement | null): ThumbnailInfo {
   return {
     id: videoId,
-    title: extractTitle(container),
-    channelName: extractChannelName(container),
+    title: extractCardTitle(container, anchor),
+    channelName: extractCardChannelName(container),
     thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
     durationSeconds: extractDurationSeconds(container),
     durationSource: 'domBadge'
@@ -67,7 +40,7 @@ function buildThumbnailInfo(container: Element, videoId: string): ThumbnailInfo 
 }
 
 function injectButton(container: Element, info: ThumbnailInfo): void {
-  const host = container.querySelector<HTMLElement>('ytd-thumbnail, #thumbnail') ?? (container as HTMLElement);
+  const host = findThumbnailHost(container);
   if (getComputedStyle(host).position === 'static') {
     host.style.position = 'relative';
   }
@@ -78,14 +51,15 @@ function injectButton(container: Element, info: ThumbnailInfo): void {
 
 function processContainer(container: Element): void {
   if (container.hasAttribute(PROCESSED_ATTR)) return;
-  const videoId = extractVideoId(container);
+  const anchor = findThumbnailAnchor(container);
+  const videoId = extractVideoIdFromHref(anchor?.getAttribute('href'));
   if (!videoId) return;
   container.setAttribute(PROCESSED_ATTR, 'true');
-  injectButton(container, buildThumbnailInfo(container, videoId));
+  injectButton(container, buildThumbnailInfo(container, videoId, anchor));
 }
 
 export function scanForThumbnails(root: ParentNode = document): void {
-  root.querySelectorAll(THUMBNAIL_SELECTORS).forEach(processContainer);
+  root.querySelectorAll(THUMBNAIL_CARD_SELECTOR).forEach(processContainer);
 }
 
 let observer: MutationObserver | null = null;

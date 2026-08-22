@@ -1,76 +1,101 @@
-import { updateActiveQueue } from '../shared/storage';
-import { addItem } from '../shared/queue-engine';
+import { addVideoToQueue } from './add-to-queue-button';
+import {
+  THUMBNAIL_CARD_SELECTOR,
+  WATCH_PAGE_CONTAINER_SELECTOR,
+  extractVideoIdFromHref,
+  findThumbnailAnchor,
+  extractCardTitle
+} from '../shared/youtube-parsing';
 
-const THUMBNAIL_CONTAINER_SELECTOR =
-  'ytd-rich-item-renderer, ytd-video-renderer, ytd-compact-video-renderer, ytd-grid-video-renderer, ytd-playlist-video-renderer';
-const WATCH_PAGE_CONTAINER_SELECTOR = 'ytd-watch-metadata, ytd-watch-flexy';
-const MENU_TRIGGER_SELECTOR = 'ytd-menu-renderer yt-icon-button#button, ytd-menu-renderer tp-yt-paper-icon-button';
+const MENU_TRIGGER_SELECTOR = "button[title='More actions'], button[aria-label='More actions']";
+const MENU_POPUP_SELECTOR =
+  "ytd-menu-popup-renderer, tp-yt-iron-dropdown[aria-hidden='false'], tp-yt-iron-dropdown:not([aria-hidden])";
+const MENU_ITEM_CLASS = 'yqm-menu-item';
 
-function extractVideoIdFromAncestor(el: Element): string | null {
-  const watchContainer = el.closest(WATCH_PAGE_CONTAINER_SELECTOR);
+interface PendingVideo {
+  videoId: string;
+  title: string;
+}
+
+function extractInfoFromTrigger(trigger: Element): PendingVideo | null {
+  const watchContainer = trigger.closest(WATCH_PAGE_CONTAINER_SELECTOR);
   if (watchContainer) {
-    return new URLSearchParams(location.search).get('v');
+    const videoId = new URLSearchParams(location.search).get('v');
+    if (!videoId) return null;
+    return { videoId, title: document.title.replace(/ - YouTube$/, '') };
   }
 
-  const container = el.closest(THUMBNAIL_CONTAINER_SELECTOR);
-  if (!container) return null;
-
-  const anchor = container.querySelector<HTMLAnchorElement>('a#thumbnail, a#video-title, a[href*="/watch?v="]');
-  const href = anchor?.getAttribute('href');
-  if (!href) return null;
-  try {
-    return new URL(href, location.origin).searchParams.get('v');
-  } catch {
-    return null;
-  }
+  const card = trigger.closest(THUMBNAIL_CARD_SELECTOR);
+  if (!card) return null;
+  const anchor = findThumbnailAnchor(card);
+  const videoId = extractVideoIdFromHref(anchor?.getAttribute('href'));
+  if (!videoId) return null;
+  return { videoId, title: extractCardTitle(card, anchor) };
 }
 
-function extractTitleFromAncestor(el: Element): string {
-  const container = el.closest(`${THUMBNAIL_CONTAINER_SELECTOR}, ${WATCH_PAGE_CONTAINER_SELECTOR}`);
-  return container?.querySelector('#video-title')?.textContent?.trim() ?? document.title.replace(/ - YouTube$/, '');
-}
+let pending: PendingVideo | null = null;
+let popupObserver: MutationObserver | null = null;
 
-let pendingVideoId: string | null = null;
-let pendingTitle = '';
+function closeNativeMenu(): void {
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+}
 
 /**
- * Best-effort interception of YouTube's own "Add to queue" three-dot menu
- * item, so a native click also lands in our queue instead of only
- * YouTube's. Text-matching the menu item is not locale-proof and YouTube's
- * markup can change — this is a "nice to have" unification layer, not the
- * reliability backbone (that's the always-present overlay button).
+ * Injects our own "Add to queue" row into the native three-dot dropdown,
+ * styled to sit alongside YouTube's real items but wired entirely to our
+ * own queue — it never touches YouTube's native queue/menu handlers.
  */
+function injectMenuItem(popup: Element): void {
+  popup.querySelectorAll(`.${MENU_ITEM_CLASS}`).forEach((el) => el.remove());
+  if (!pending) return;
+  const video = pending;
+
+  const listbox = popup.querySelector('tp-yt-paper-listbox, #items') ?? popup;
+  const item = document.createElement('div');
+  item.className = MENU_ITEM_CLASS;
+  item.setAttribute('role', 'menuitem');
+  item.innerHTML = `<span class="yqm-menu-item-icon">➕</span><span>Add to Queue</span>`;
+  item.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void addVideoToQueue({
+      id: video.videoId,
+      title: video.title,
+      channelName: '',
+      thumbnailUrl: `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`,
+      durationSeconds: null,
+      durationSource: 'unknown'
+    });
+    closeNativeMenu();
+  });
+
+  listbox.prepend(item);
+}
+
+function watchForPopup(): void {
+  popupObserver?.disconnect();
+  popupObserver = new MutationObserver(() => {
+    const popup = document.querySelector(MENU_POPUP_SELECTOR);
+    if (popup && !popup.querySelector(`.${MENU_ITEM_CLASS}`)) {
+      injectMenuItem(popup);
+    }
+  });
+  popupObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['aria-hidden']
+  });
+  window.setTimeout(() => popupObserver?.disconnect(), 2000);
+}
+
 function onDocumentClickCapture(event: MouseEvent): void {
   const target = event.target as Element | null;
   if (!target) return;
-
-  const menuTrigger = target.closest(MENU_TRIGGER_SELECTOR);
-  if (menuTrigger) {
-    pendingVideoId = extractVideoIdFromAncestor(menuTrigger);
-    pendingTitle = extractTitleFromAncestor(menuTrigger);
-    return;
-  }
-
-  const menuItem = target.closest('ytd-menu-service-item-renderer');
-  if (!menuItem) return;
-
-  const videoId = pendingVideoId;
-  pendingVideoId = null;
-  if (!videoId) return;
-
-  const text = menuItem.textContent?.toLowerCase() ?? '';
-  if (!text.includes('queue')) return;
-
-  void updateActiveQueue((queue) =>
-    addItem(queue, {
-      id: videoId,
-      title: pendingTitle,
-      channelName: '',
-      thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-      durationSeconds: null,
-      durationSource: 'unknown'
-    })
-  );
+  const trigger = target.closest(MENU_TRIGGER_SELECTOR);
+  if (!trigger) return;
+  pending = extractInfoFromTrigger(trigger);
+  if (pending) watchForPopup();
 }
 
 export function startNativeMenuHook(): void {
