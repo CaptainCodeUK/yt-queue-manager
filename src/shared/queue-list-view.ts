@@ -64,6 +64,12 @@ export function renderQueueList(container: HTMLElement, queue: ActiveQueue, call
     dragHandle.textContent = '⠿';
     li.appendChild(dragHandle);
 
+    const thumb = document.createElement('img');
+    thumb.className = 'yqm-item-thumb';
+    thumb.src = item.thumbnailUrl;
+    thumb.alt = '';
+    li.appendChild(thumb);
+
     const title = document.createElement('span');
     title.className = 'yqm-item-title';
     title.textContent = item.title || item.id;

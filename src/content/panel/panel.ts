@@ -1,5 +1,5 @@
 import { getActiveQueue, subscribe, updateActiveQueue } from '../../shared/storage';
-import { removeItem, reorder, clearPlayed } from '../../shared/queue-engine';
+import { removeItem, reorder, clearPlayed, clearActiveQueue } from '../../shared/queue-engine';
 import { renderQueueList } from '../../shared/queue-list-view';
 import { sendMessage } from '../../shared/messaging';
 import { ActiveQueue } from '../../shared/types';
@@ -52,9 +52,11 @@ function toggleDropdown(): void {
 
 function onDocumentClickCapture(event: MouseEvent): void {
   if (!dropdown?.classList.contains('yqm-open')) return;
-  const target = event.target as Node | null;
-  if (!target) return;
-  if (dropdown.contains(target) || toggleButton?.contains(target)) return;
+  // event.target is retargeted to the shadow host for listeners outside the
+  // shadow tree, so `dropdown.contains(target)` is always false for clicks
+  // inside it. composedPath() gives the real path through the shadow DOM.
+  const path = event.composedPath();
+  if ((dropdown && path.includes(dropdown)) || (toggleButton && path.includes(toggleButton))) return;
   closeDropdown();
 }
 
@@ -106,7 +108,7 @@ function mountHeaderButton(): boolean {
   toggleButton.type = 'button';
   toggleButton.className = 'yqm-header-button';
   toggleButton.innerHTML =
-    '<span class="yqm-header-icon">+</span><span>Queue</span><span class="yqm-header-badge" hidden></span>';
+    '<span class="yqm-header-icon">+</span><span>My Queue</span><span class="yqm-header-badge" hidden></span>';
   toggleButton.addEventListener('click', (event) => {
     event.stopPropagation();
     toggleDropdown();
@@ -117,6 +119,16 @@ function mountHeaderButton(): boolean {
   dropdown = document.createElement('div');
   dropdown.className = 'yqm-dropdown';
   shadowRoot.appendChild(dropdown);
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'yqm-panel-toolbar';
+  const clearQueueButton = document.createElement('button');
+  clearQueueButton.type = 'button';
+  clearQueueButton.className = 'yqm-clear-queue-button';
+  clearQueueButton.textContent = 'Clear queue';
+  clearQueueButton.addEventListener('click', () => void updateActiveQueue(() => clearActiveQueue()));
+  toolbar.appendChild(clearQueueButton);
+  dropdown.appendChild(toolbar);
 
   listContainer = document.createElement('div');
   dropdown.appendChild(listContainer);

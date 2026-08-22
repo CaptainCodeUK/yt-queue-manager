@@ -41,7 +41,7 @@
   position: absolute;
   bottom: 4px;
   left: 4px;
-  z-index: 10;
+  z-index: 100;
   padding: 4px 8px;
   font-size: 11px;
   border-radius: 12px;

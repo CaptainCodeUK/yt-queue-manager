@@ -20,7 +20,9 @@ type ThumbnailInfo = Pick<
 /** Parses a rendered duration badge (e.g. "12:34" or "1:02:03") into seconds. Best-effort fallback only — see duration-resolution notes in the plan. */
 function extractDurationSeconds(container: Element): number | null {
   const text = container
-    .querySelector('ytd-thumbnail-overlay-time-status-renderer #text, .badge-shape-wiz__text')
+    .querySelector(
+      'ytd-thumbnail-overlay-time-status-renderer #text, .badge-shape-wiz__text, .ytBadgeShapeText'
+    )
     ?.textContent?.trim();
   if (!text) return null;
   const parts = text.split(':').map((part) => parseInt(part, 10));
@@ -47,6 +49,16 @@ function injectButton(container: Element, info: ThumbnailInfo): void {
   const button = createAddToQueueButton(info);
   button.classList.add(OVERLAY_CLASS);
   host.appendChild(button);
+
+  // YouTube's hover-preview player can wipe/rebuild the host's children,
+  // evicting our button. Re-append only when it's actually gone — reacting
+  // to mere reordering would fight YouTube's own re-append-to-front logic
+  // for its preview frames and loop the two observers against each other
+  // indefinitely (this hung the tab in testing).
+  const keepMounted = new MutationObserver(() => {
+    if (!host.contains(button)) host.appendChild(button);
+  });
+  keepMounted.observe(host, { childList: true });
 }
 
 function processContainer(container: Element): void {
