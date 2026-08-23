@@ -54,6 +54,7 @@ function injectMenuItem(popup: Element): void {
   const item = document.createElement('div');
   item.className = MENU_ITEM_CLASS;
   item.setAttribute('role', 'menuitem');
+  item.setAttribute('data-video-id', video.videoId);
   item.innerHTML = `<span class="yqm-menu-item-icon">${ADD_TO_QUEUE_ICON}</span><span>${ADD_TO_QUEUE_LABEL}</span>`;
   item.addEventListener('click', (event) => {
     event.preventDefault();
@@ -76,7 +77,10 @@ function watchForPopup(): void {
   popupObserver?.disconnect();
   popupObserver = new MutationObserver(() => {
     const popup = document.querySelector(MENU_POPUP_SELECTOR);
-    if (popup && !popup.querySelector(`.${MENU_ITEM_CLASS}`)) {
+    if (!popup) return;
+    const existing = popup.querySelector(`.${MENU_ITEM_CLASS}`);
+    const existingVideoId = existing?.getAttribute('data-video-id');
+    if (existingVideoId !== pending?.videoId) {
       injectMenuItem(popup);
     }
   });
