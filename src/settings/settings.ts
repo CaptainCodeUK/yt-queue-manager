@@ -6,12 +6,11 @@ const syncToggle = document.getElementById('experimental-sync-toggle') as HTMLIn
 const syncNowButton = document.getElementById('sync-now-button') as HTMLButtonElement;
 const syncNowStatus = document.getElementById('sync-now-status')!;
 
-const vivaldiSection = document.getElementById('vivaldi-notes-section')!;
-const vivaldiCopyButton = document.getElementById('vivaldi-copy-button') as HTMLButtonElement;
-const vivaldiCopyStatus = document.getElementById('vivaldi-copy-status')!;
-const vivaldiImportTextarea = document.getElementById('vivaldi-import-textarea') as HTMLTextAreaElement;
-const vivaldiImportButton = document.getElementById('vivaldi-import-button') as HTMLButtonElement;
-const vivaldiImportStatus = document.getElementById('vivaldi-import-status')!;
+const exportCopyButton = document.getElementById('export-copy-button') as HTMLButtonElement;
+const exportCopyStatus = document.getElementById('export-copy-status')!;
+const importTextarea = document.getElementById('import-textarea') as HTMLTextAreaElement;
+const importButton = document.getElementById('import-button') as HTMLButtonElement;
+const importStatus = document.getElementById('import-status')!;
 
 getSettings().then((settings) => {
   syncToggle.checked = settings.experimentalSync;
@@ -29,23 +28,16 @@ syncNowButton.addEventListener('click', async () => {
   syncNowStatus.textContent = didSync ? 'Synced just now' : 'Enable the toggle above first';
 });
 
-// Best-effort: Vivaldi can mask this string on ordinary web pages, but
-// there's no reliable way to detect it otherwise — this section just stays
-// hidden if that happens, rather than showing on a browser it's not for.
-if (navigator.userAgent.includes('Vivaldi')) {
-  vivaldiSection.hidden = false;
-}
-
-vivaldiCopyButton.addEventListener('click', async () => {
+exportCopyButton.addEventListener('click', async () => {
   const queue = await getActiveQueue();
   await navigator.clipboard.writeText(buildQueueExportText(queue));
-  vivaldiCopyStatus.textContent = `Copied ${queue.items.length} item(s) — paste into a Vivaldi Note`;
+  exportCopyStatus.textContent = `Copied ${queue.items.length} item(s) — paste it wherever suits you, then bring it to your other device`;
 });
 
-vivaldiImportButton.addEventListener('click', async () => {
-  const parsed = parseQueueExport(vivaldiImportTextarea.value);
+importButton.addEventListener('click', async () => {
+  const parsed = parseQueueExport(importTextarea.value);
   if (!parsed) {
-    vivaldiImportStatus.textContent = "Couldn't read that — paste the exact text copied from Export";
+    importStatus.textContent = "Couldn't read that — paste the exact text copied from Export";
     return;
   }
 
@@ -59,6 +51,6 @@ vivaldiImportButton.addEventListener('click', async () => {
     drivingWindowId: null,
     updatedAt: Date.now()
   });
-  vivaldiImportStatus.textContent = `Imported ${parsed.items.length} item(s)`;
-  vivaldiImportTextarea.value = '';
+  importStatus.textContent = `Imported ${parsed.items.length} item(s)`;
+  importTextarea.value = '';
 });
