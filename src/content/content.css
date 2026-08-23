@@ -35,26 +35,13 @@
   cursor: default;
 }
 
-/* Docked into the views/age (or Shorts view-count) row instead of overlaid
-   on the thumbnail — that row is plain text YouTube never touches for its
-   hover-preview player, so the button just needs to sit in normal flow,
-   pushed to the row's end. */
-.yqm-metadata-row {
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-/* yt-content-metadata-view-model defaults to display:inline (unstyled
-   custom element), which shrink-wraps it to the row instead of filling the
-   already-wide box above it — force it to actually take that width. */
-.yqm-metadata-row-parent {
-  display: block;
-  width: 100%;
-}
-
+/* Anchored to the card's own right edge (not the metadata row's width,
+   which shrink-wraps through several unstyled ancestor levels with no
+   reliable single point to force wide). Vertical position is set in JS to
+   match the views/age row. */
 .yqm-thumb-overlay {
-  margin-left: auto;
+  position: absolute;
+  right: 8px;
   padding: 4px 8px;
   font-size: 11px;
   border-radius: 12px;

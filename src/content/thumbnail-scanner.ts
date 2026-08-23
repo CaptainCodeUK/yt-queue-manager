@@ -11,8 +11,6 @@ import {
 
 const PROCESSED_ATTR = 'data-yqm-processed';
 const CONTAINER_CLASS = 'yqm-thumb-container';
-const ROW_CLASS = 'yqm-metadata-row';
-const ROW_PARENT_CLASS = 'yqm-metadata-row-parent';
 const OVERLAY_CLASS = 'yqm-thumb-overlay';
 
 type ThumbnailInfo = Pick<
@@ -44,26 +42,58 @@ function buildThumbnailInfo(container: Element, videoId: string, anchor: HTMLAnc
   };
 }
 
-// Docked into the views/age (or Shorts view-count) row rather than overlaid
-// on the thumbnail. The thumbnail is where YouTube's hover-preview player
-// lives, and nothing we tried — re-anchoring on host swap, chasing z-index,
-// even a viewport-fixed portal layer — could reliably stay above or ahead of
-// it. The metadata row is plain text YouTube doesn't touch on hover, so the
-// button just becomes part of normal document flow, right-aligned.
+function ensurePositioned(el: HTMLElement): void {
+  if (getComputedStyle(el).position === 'static') {
+    el.style.position = 'relative';
+  }
+}
+
+const repositionFns = new Set<() => void>();
+let resizeListenerBound = false;
+
+function ensureResizeListener(): void {
+  if (resizeListenerBound) return;
+  resizeListenerBound = true;
+  window.addEventListener(
+    'resize',
+    () => repositionFns.forEach((fn) => fn()),
+    { passive: true }
+  );
+}
+
+// Anchored to the card itself (right edge), not the metadata row's own
+// width — the row shrink-wraps through several unstyled ancestor levels
+// (yt-content-metadata-view-model, its plain-div parent) with no reliable
+// single point to force wide, so margin-left: auto on the row landed
+// inconsistently across cards. The row is only used here to compute a
+// matching vertical offset; horizontal placement comes from the card.
+// Docking near the metadata text at all (rather than over the thumbnail)
+// still matters: that's where YouTube's hover-preview player lives, and
+// nothing tried there — re-anchoring on host swap, chasing z-index, even a
+// viewport-fixed portal layer — reliably stayed visible once a preview
+// started playing.
 function injectButton(container: Element, info: ThumbnailInfo): void {
   const row = findMetadataRow(container);
   if (!row) return;
-  row.classList.add(ROW_CLASS);
-  // yt-content-metadata-view-model (the row's parent, for the non-Shorts
-  // layout) is an unstyled custom element and defaults to display:inline,
-  // which shrink-wraps it to the row's own content instead of filling the
-  // genuinely-wide box above it — that's why margin-left: auto on the row
-  // has no space to push into. Forcing it to a block that fills its parent
-  // routes that real width down to the row.
-  if (row.parentElement) row.parentElement.classList.add(ROW_PARENT_CLASS);
+
+  const host = container as HTMLElement;
+  ensurePositioned(host);
+
   const button = createAddToQueueButton(info);
   button.classList.add(OVERLAY_CLASS);
-  row.appendChild(button);
+  host.appendChild(button);
+
+  const positionButton = (): void => {
+    if (!host.isConnected) {
+      repositionFns.delete(positionButton);
+      return;
+    }
+    const rowRect = row.getBoundingClientRect();
+    const hostRect = host.getBoundingClientRect();
+    button.style.top = `${rowRect.top - hostRect.top + (rowRect.height - button.offsetHeight) / 2}px`;
+  };
+  positionButton();
+  repositionFns.add(positionButton);
 }
 
 function processContainer(container: Element): void {
@@ -109,6 +139,7 @@ function scheduleScan(): void {
 
 /** Starts the MutationObserver-based scan. Safe to call once; also worth re-invoking `scanForThumbnails()` directly after SPA navigation as a redundant safety net. */
 export function startThumbnailScanner(): void {
+  ensureResizeListener();
   scanForThumbnails();
   if (observer) return;
   observer = new MutationObserver(scheduleScan);
