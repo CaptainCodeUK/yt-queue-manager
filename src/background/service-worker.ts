@@ -1,6 +1,7 @@
 import { ExtensionMessage, ClaimDriverResponse, HEARTBEAT_INTERVAL_MS } from '../shared/messaging';
 import { getActiveQueue, updateActiveQueue, getValue, setValue } from '../shared/storage';
 import { watchUrl } from '../shared/youtube-parsing';
+import { initSyncBridge, forceSync } from '../shared/sync-storage';
 
 // Background service worker. Holds no authoritative in-memory state — MV3
 // service workers are killed/restarted at will, so chrome.storage.local is
@@ -150,6 +151,9 @@ chrome.runtime.onMessage.addListener(
           await navigateToVideo(message.videoId);
           sendResponse(undefined);
           return;
+        case 'forceSync':
+          sendResponse(await forceSync());
+          return;
       }
     })();
     return true; // keep the message channel open for the async response
@@ -171,6 +175,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // same name is a harmless no-op reschedule, so this is the simplest way to
 // guarantee it exists regardless of when the worker last woke up.
 chrome.alarms.create(STALE_DRIVER_ALARM, { periodInMinutes: 1 });
+
+initSyncBridge();
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[yt-queue-manager] background service worker installed');

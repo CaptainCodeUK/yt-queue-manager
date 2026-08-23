@@ -154,6 +154,13 @@ body {
   background: #efefef;
 }
 
+.yqm-toolbar button#settings-button {
+  flex: 0 0 auto;
+  width: 32px;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
 .yqm-section-heading {
   font-weight: 500;
   color: #606060;

@@ -8,10 +8,6 @@ import panelCss from './panel.css?inline';
 
 const HOST_ID = 'yqm-header-host';
 const CREATE_LABEL_PATTERN = /^create$/i;
-const FOOTER_LINKS = [
-  { href: 'https://ko-fi.com/captaincodeuk', label: 'Donate if you like the extension' },
-  { href: 'https://rubberduck.works', label: 'See my other projects' }
-];
 
 function findButtonsContainer(): HTMLElement | null {
   return document.querySelector<HTMLElement>('ytd-masthead #end #buttons');
@@ -150,24 +146,6 @@ function mountHeaderButton(): boolean {
 
   listContainer = document.createElement('div');
   dropdown.appendChild(listContainer);
-
-  const footer = document.createElement('div');
-  footer.className = 'yqm-panel-footer';
-  FOOTER_LINKS.forEach(({ href, label }, index) => {
-    if (index > 0) {
-      const separator = document.createElement('span');
-      separator.textContent = ' | ';
-      footer.appendChild(separator);
-    }
-    const link = document.createElement('a');
-    link.className = 'yqm-footer-link';
-    link.href = href;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.textContent = label;
-    footer.appendChild(link);
-  });
-  dropdown.appendChild(footer);
 
   if (latestQueue) render(latestQueue);
 

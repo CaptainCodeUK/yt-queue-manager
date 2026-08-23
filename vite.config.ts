@@ -7,7 +7,8 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        popup: 'src/popup/popup.html'
+        popup: 'src/popup/popup.html',
+        settings: 'src/settings/settings.html'
       }
     }
   }

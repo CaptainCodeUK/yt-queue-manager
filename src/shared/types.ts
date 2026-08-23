@@ -34,6 +34,7 @@ export interface SavedPlaylist {
 export interface Settings {
   autoAdvance: boolean;
   suppressNativeQueueUI: boolean;
+  experimentalSync: boolean;
 }
 
 export interface StorageSchema {
@@ -56,6 +57,7 @@ export function emptyActiveQueue(): ActiveQueue {
 export function defaultSettings(): Settings {
   return {
     autoAdvance: true,
-    suppressNativeQueueUI: true
+    suppressNativeQueueUI: true,
+    experimentalSync: false
   };
 }

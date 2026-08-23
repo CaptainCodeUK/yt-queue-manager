@@ -8,6 +8,7 @@ const queueSection = document.getElementById('queue-section')!;
 const playlistsSection = document.getElementById('playlists-section')!;
 const saveButton = document.getElementById('save-playlist-button') as HTMLButtonElement;
 const clearQueueButton = document.getElementById('clear-queue-button') as HTMLButtonElement;
+const settingsButton = document.getElementById('settings-button') as HTMLButtonElement;
 
 function renderQueue(queue: ActiveQueue): void {
   renderQueueList(queueSection, queue, {
@@ -87,6 +88,19 @@ saveButton.addEventListener('click', async () => {
 });
 
 clearQueueButton.addEventListener('click', () => void updateActiveQueue(() => clearActiveQueue()));
+
+settingsButton.addEventListener('click', () => {
+  // A detached popup-style window, not a full tab — openOptionsPage() would
+  // take over the current tab; this stays a small floating window like the
+  // queue popup itself, just not anchored to the toolbar icon (Chrome only
+  // allows one true anchored action popup per extension).
+  void chrome.windows.create({
+    url: chrome.runtime.getURL('src/settings/settings.html'),
+    type: 'popup',
+    width: 400,
+    height: 320
+  });
+});
 
 getActiveQueue().then(renderQueue);
 subscribe('activeQueue', renderQueue);

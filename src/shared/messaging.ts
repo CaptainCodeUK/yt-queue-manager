@@ -5,7 +5,8 @@ export type ExtensionMessage =
   | { type: 'claimDriver' }
   | { type: 'releaseDriver'; tabId: number }
   | { type: 'heartbeat'; tabId: number }
-  | { type: 'navigateToVideo'; videoId: string };
+  | { type: 'navigateToVideo'; videoId: string }
+  | { type: 'forceSync' };
 
 export interface ClaimDriverResponse {
   tabId: number;

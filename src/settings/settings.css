@@ -1,0 +1,76 @@
+body {
+  margin: 0;
+  padding: 16px;
+  font-family: 'Roboto', Arial, sans-serif;
+  font-size: 13px;
+  color: #0f0f0f;
+}
+
+.yqm-settings-title {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+.yqm-settings-section {
+  padding: 12px 0;
+  border-top: 1px solid #e5e5e5;
+}
+
+.yqm-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.yqm-settings-caption {
+  color: #606060;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+
+.yqm-sync-now-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.yqm-sync-now-row button {
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid #d3d3d3;
+  border-radius: 4px;
+  background: #f9f9f9;
+  cursor: pointer;
+}
+
+.yqm-sync-now-row button:hover {
+  background: #efefef;
+}
+
+.yqm-sync-now-status {
+  font-size: 12px;
+  color: #606060;
+}
+
+.yqm-footer {
+  display: flex;
+  justify-content: flex-start;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.yqm-footer-link {
+  font-size: 12px;
+  color: #606060;
+  text-decoration: none;
+}
+
+.yqm-footer-link:hover {
+  color: #5e35b1;
+  text-decoration: underline;
+}

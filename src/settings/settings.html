@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>YouTube Queue Manager Settings</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <div id="app">
+      <h1 class="yqm-settings-title">Settings</h1>
+      <div class="yqm-settings-section">
+        <label class="yqm-settings-row">
+          <input type="checkbox" id="experimental-sync-toggle" />
+          Sync active queue across devices (experimental)
+        </label>
+        <p class="yqm-settings-caption">
+          Best-effort, off by default. Uses your browser's built-in sync, so it only works reliably between devices
+          running the same browser (e.g. Chrome to Chrome, or Edge to Edge) signed into the same account with sync
+          turned on. It won't bridge different browsers (e.g. Chrome to Vivaldi), and support varies across
+          Chromium-based browsers — this may not work as expected.
+        </p>
+        <div class="yqm-sync-now-row">
+          <button id="sync-now-button" type="button">Sync now</button>
+          <span id="sync-now-status" class="yqm-sync-now-status"></span>
+        </div>
+      </div>
+      <div class="yqm-footer">
+        <a class="yqm-footer-link" href="https://ko-fi.com/captaincodeuk" target="_blank" rel="noopener noreferrer"
+        >Donate if you like the extension</a
+        >
+        <span> | </span>
+        <a class="yqm-footer-link" href="https://rubberduck.works" target="_blank" rel="noopener noreferrer"
+          >See my other projects</a
+        >
+      </div>
+    </div>
+    <script type="module" src="settings.ts"></script>
+  </body>
+</html>
