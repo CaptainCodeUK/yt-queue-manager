@@ -30,14 +30,19 @@ body {
   margin: 8px 0 0;
 }
 
-.yqm-sync-now-row {
+.yqm-settings-section-title {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.yqm-action-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 10px;
 }
 
-.yqm-sync-now-row button {
+.yqm-action-row button {
   font-size: 12px;
   padding: 5px 10px;
   border: 1px solid #d3d3d3;
@@ -46,13 +51,25 @@ body {
   cursor: pointer;
 }
 
-.yqm-sync-now-row button:hover {
+.yqm-action-row button:hover {
   background: #efefef;
 }
 
-.yqm-sync-now-status {
+.yqm-action-status {
   font-size: 12px;
   color: #606060;
+}
+
+.yqm-vivaldi-import-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 10px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 11px;
+  padding: 6px;
+  border: 1px solid #d3d3d3;
+  border-radius: 4px;
+  resize: vertical;
 }
 
 .yqm-footer {

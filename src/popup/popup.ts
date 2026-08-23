@@ -97,8 +97,8 @@ settingsButton.addEventListener('click', () => {
   void chrome.windows.create({
     url: chrome.runtime.getURL('src/settings/settings.html'),
     type: 'popup',
-    width: 400,
-    height: 320
+    width: 420,
+    height: 560
   });
 });
 

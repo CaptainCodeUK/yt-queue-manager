@@ -19,9 +19,32 @@
           turned on. It won't bridge different browsers (e.g. Chrome to Vivaldi), and support varies across
           Chromium-based browsers — this may not work as expected.
         </p>
-        <div class="yqm-sync-now-row">
+        <div class="yqm-action-row">
           <button id="sync-now-button" type="button">Sync now</button>
-          <span id="sync-now-status" class="yqm-sync-now-status"></span>
+          <span id="sync-now-status" class="yqm-action-status"></span>
+        </div>
+      </div>
+      <div id="vivaldi-notes-section" class="yqm-settings-section" hidden>
+        <div class="yqm-settings-section-title">Vivaldi Notes queue sync (experimental)</div>
+        <p class="yqm-settings-caption">
+          Vivaldi doesn't give extensions any way to read or write Notes directly, so this is a manual relay: copy
+          your queue, paste it into a Vivaldi Note (it'll sync to your other devices via Vivaldi Sync), then on
+          another device copy that note's text back out and paste it in below to import it. Shown here because this
+          browser identifies itself as Vivaldi — that check isn't foolproof.
+        </p>
+        <div class="yqm-action-row">
+          <button id="vivaldi-copy-button" type="button">Copy queue to clipboard</button>
+          <span id="vivaldi-copy-status" class="yqm-action-status"></span>
+        </div>
+        <textarea
+          id="vivaldi-import-textarea"
+          class="yqm-vivaldi-import-textarea"
+          rows="4"
+          placeholder="Paste a Vivaldi Note's contents here"
+        ></textarea>
+        <div class="yqm-action-row">
+          <button id="vivaldi-import-button" type="button">Import from pasted text</button>
+          <span id="vivaldi-import-status" class="yqm-action-status"></span>
         </div>
       </div>
       <div class="yqm-footer">
