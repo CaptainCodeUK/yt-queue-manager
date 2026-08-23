@@ -4,7 +4,7 @@ import {
   THUMBNAIL_CARD_SELECTOR,
   extractVideoIdFromHref,
   findThumbnailAnchor,
-  findMetadataRow,
+  findThumbnailHost,
   extractCardTitle,
   extractCardChannelName
 } from '../shared/youtube-parsing';
@@ -48,52 +48,33 @@ function ensurePositioned(el: HTMLElement): void {
   }
 }
 
-const repositionFns = new Set<() => void>();
-let resizeListenerBound = false;
-
-function ensureResizeListener(): void {
-  if (resizeListenerBound) return;
-  resizeListenerBound = true;
-  window.addEventListener(
-    'resize',
-    () => repositionFns.forEach((fn) => fn()),
-    { passive: true }
-  );
-}
-
-// Anchored to the card itself (right edge), not the metadata row's own
-// width — the row shrink-wraps through several unstyled ancestor levels
-// (yt-content-metadata-view-model, its plain-div parent) with no reliable
-// single point to force wide, so margin-left: auto on the row landed
-// inconsistently across cards. The row is only used here to compute a
-// matching vertical offset; horizontal placement comes from the card.
-// Docking near the metadata text at all (rather than over the thumbnail)
-// still matters: that's where YouTube's hover-preview player lives, and
-// nothing tried there — re-anchoring on host swap, chasing z-index, even a
-// viewport-fixed portal layer — reliably stayed visible once a preview
-// started playing.
+// Overlaid bottom-left on the thumbnail itself. Docking it in the metadata
+// row instead (to dodge YouTube's hover-preview player) kept landing on
+// shelves/carousels differently than in a plain grid, causing more
+// regressions than it fixed — this is simpler and correct everywhere,
+// accepting that it can get covered or evicted while a preview is playing.
 function injectButton(container: Element, info: ThumbnailInfo): void {
-  const row = findMetadataRow(container);
-  if (!row) return;
-
-  const host = container as HTMLElement;
+  const host = findThumbnailHost(container);
   ensurePositioned(host);
-
   const button = createAddToQueueButton(info);
   button.classList.add(OVERLAY_CLASS);
   host.appendChild(button);
 
-  const positionButton = (): void => {
-    if (!host.isConnected) {
-      repositionFns.delete(positionButton);
-      return;
-    }
-    const rowRect = row.getBoundingClientRect();
-    const hostRect = host.getBoundingClientRect();
-    button.style.top = `${rowRect.top - hostRect.top + (rowRect.height - button.offsetHeight) / 2}px`;
-  };
-  positionButton();
-  repositionFns.add(positionButton);
+  // YouTube's hover-preview player can wipe a host's children, or swap the
+  // host element for a new instance entirely. A MutationObserver bound to
+  // the old host never fires once it's been replaced, so we watch the
+  // stable card container instead and re-resolve the host on demand. Gated
+  // on the button actually leaving the container (not merely being
+  // reordered within it) to avoid fighting YouTube's own re-append-to-front
+  // logic for its preview frames, which hung the tab when we reacted to
+  // every reorder.
+  const keepMounted = new MutationObserver(() => {
+    if (container.contains(button)) return;
+    const currentHost = findThumbnailHost(container);
+    ensurePositioned(currentHost);
+    currentHost.appendChild(button);
+  });
+  keepMounted.observe(container, { childList: true, subtree: true });
 }
 
 function processContainer(container: Element): void {
@@ -139,7 +120,6 @@ function scheduleScan(): void {
 
 /** Starts the MutationObserver-based scan. Safe to call once; also worth re-invoking `scanForThumbnails()` directly after SPA navigation as a redundant safety net. */
 export function startThumbnailScanner(): void {
-  ensureResizeListener();
   scanForThumbnails();
   if (observer) return;
   observer = new MutationObserver(scheduleScan);

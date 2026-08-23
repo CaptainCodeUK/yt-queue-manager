@@ -127,19 +127,3 @@ export function extractCardChannelName(card: Element): string {
     card.querySelector('ytd-channel-name #text, #channel-name #text, #byline')?.textContent?.trim() ?? ''
   );
 }
-
-/**
- * Finds the row of text to dock the add-to-queue button into: the
- * views/upload-age line under the title (last `.ytContentMetadataViewModelMetadataRow`
- * — the channel-name row, if present, comes first), the Shorts view-count
- * subhead, or the legacy `#metadata-line`. Anchoring here instead of on the
- * thumbnail means the button lives in normal document flow, out of reach of
- * whatever YouTube's hover-preview player does to the thumbnail itself.
- */
-export function findMetadataRow(card: Element): HTMLElement | null {
-  const rows = card.querySelectorAll<HTMLElement>('.ytContentMetadataViewModelMetadataRow');
-  if (rows.length > 0) return rows[rows.length - 1];
-  const shortsSubhead = card.querySelector<HTMLElement>('.shortsLockupViewModelHostMetadataSubhead');
-  if (shortsSubhead) return shortsSubhead;
-  return card.querySelector<HTMLElement>('#metadata-line');
-}
