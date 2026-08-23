@@ -5,7 +5,7 @@ export default defineManifest({
   manifest_version: 3,
   name: 'YouTube Queue Manager',
   description:
-    'An independent, reliable replacement for YouTube\'s native queue: add-to-queue anywhere, drag-and-drop reorder, played tracking, and real queue/remaining time totals.',
+    'Replacement for YouTube\'s native queue: add-to-queue anywhere, drag-and-drop reorder, played tracking, and real queue/remaining time totals.',
   version: pkg.version,
   icons: {
     16: 'public/icons/icon16.png',
