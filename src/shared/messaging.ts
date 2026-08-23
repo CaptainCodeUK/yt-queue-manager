@@ -1,3 +1,6 @@
+/** How often the driving tab's content script pings the background to prove it's still alive — shared with the background's staleness check. */
+export const HEARTBEAT_INTERVAL_MS = 15000;
+
 export type ExtensionMessage =
   | { type: 'claimDriver' }
   | { type: 'releaseDriver'; tabId: number }

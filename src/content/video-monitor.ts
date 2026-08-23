@@ -1,11 +1,9 @@
 import { getActiveQueue, updateActiveQueue, getSettings } from '../shared/storage';
 import { advance, updateDuration } from '../shared/queue-engine';
-import { sendMessage } from '../shared/messaging';
+import { sendMessage, HEARTBEAT_INTERVAL_MS } from '../shared/messaging';
 import { ClaimDriverResponse } from '../shared/messaging';
 import { watchUrl } from '../shared/youtube-parsing';
 import { spaNavigate } from './navigation';
-
-const HEARTBEAT_INTERVAL_MS = 15000;
 
 let myTabId: number | null = null;
 let heartbeatTimer: number | undefined;

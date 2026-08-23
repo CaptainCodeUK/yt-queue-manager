@@ -1,10 +1,16 @@
-import { ExtensionMessage, ClaimDriverResponse } from '../shared/messaging';
-import { getActiveQueue, updateActiveQueue, setValue } from '../shared/storage';
+import { ExtensionMessage, ClaimDriverResponse, HEARTBEAT_INTERVAL_MS } from '../shared/messaging';
+import { getActiveQueue, updateActiveQueue, getValue, setValue } from '../shared/storage';
 import { watchUrl } from '../shared/youtube-parsing';
 
 // Background service worker. Holds no authoritative in-memory state — MV3
 // service workers are killed/restarted at will, so chrome.storage.local is
 // always re-read on each event, never trusted from module-level variables.
+
+// Tolerate a couple of missed heartbeats (tab backgrounded, brief network
+// hiccup) before treating the driver as gone — the driving tab's content
+// script pings every HEARTBEAT_INTERVAL_MS via the 'heartbeat' message.
+const STALE_DRIVER_THRESHOLD_MS = HEARTBEAT_INTERVAL_MS * 3;
+const STALE_DRIVER_ALARM = 'yqm-stale-driver-check';
 
 async function claimDriver(tabId: number, windowId: number): Promise<ClaimDriverResponse> {
   await updateActiveQueue((queue) => ({
@@ -19,6 +25,19 @@ async function claimDriver(tabId: number, windowId: number): Promise<ClaimDriver
 async function releaseDriver(tabId: number): Promise<void> {
   const queue = await getActiveQueue();
   if (queue.drivingTabId !== tabId) return;
+  await updateActiveQueue((q) => ({ ...q, drivingTabId: null, drivingWindowId: null }));
+}
+
+/**
+ * Clears the driver if its heartbeat has gone stale — covers a driving tab
+ * that hangs, crashes, or otherwise stops pinging without firing
+ * `chrome.tabs.onRemoved` (which only handles a clean tab close).
+ */
+async function reclaimStaleDriver(): Promise<void> {
+  const queue = await getActiveQueue();
+  if (queue.drivingTabId === null) return;
+  const lastHeartbeatAt = await getValue('driverHeartbeatAt');
+  if (Date.now() - lastHeartbeatAt < STALE_DRIVER_THRESHOLD_MS) return;
   await updateActiveQueue((q) => ({ ...q, drivingTabId: null, drivingWindowId: null }));
 }
 
@@ -140,6 +159,18 @@ chrome.runtime.onMessage.addListener(
 chrome.tabs.onRemoved.addListener((tabId) => {
   releaseDriver(tabId);
 });
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === STALE_DRIVER_ALARM) {
+    void reclaimStaleDriver();
+  }
+});
+
+// Re-armed on every service worker activation, not just install — alarms
+// persist independently of the worker's lifecycle, but re-creating with the
+// same name is a harmless no-op reschedule, so this is the simplest way to
+// guarantee it exists regardless of when the worker last woke up.
+chrome.alarms.create(STALE_DRIVER_ALARM, { periodInMinutes: 1 });
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[yt-queue-manager] background service worker installed');
