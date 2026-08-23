@@ -35,24 +35,37 @@
   cursor: default;
 }
 
-/* Bottom-left: avoids YouTube's own top-right "already saved" badges and
-   the bottom-right duration badge. */
+/* Docked into the views/age (or Shorts view-count) row instead of overlaid
+   on the thumbnail — that row is plain text YouTube never touches for its
+   hover-preview player, so the button just needs to sit in normal flow,
+   pushed to the row's end. */
+.yqm-metadata-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* yt-content-metadata-view-model defaults to display:inline (unstyled
+   custom element), which shrink-wraps it to the row instead of filling the
+   already-wide box above it — force it to actually take that width. */
+.yqm-metadata-row-parent {
+  display: block;
+  width: 100%;
+}
+
 .yqm-thumb-overlay {
-  position: absolute;
-  bottom: 4px;
-  left: 4px;
-  z-index: 100;
+  margin-left: auto;
   padding: 4px 8px;
   font-size: 11px;
   border-radius: 12px;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.1s ease-in-out;
 }
 
-ytd-thumbnail:hover .yqm-thumb-overlay,
-#thumbnail:hover .yqm-thumb-overlay,
-yt-thumbnail-view-model:hover .yqm-thumb-overlay {
+.yqm-thumb-container:hover .yqm-thumb-overlay {
   opacity: 1;
+  pointer-events: auto;
 }
 
 /* Solid, hardcoded backgrounds throughout — YouTube's own theme variables

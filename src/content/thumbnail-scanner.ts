@@ -4,12 +4,15 @@ import {
   THUMBNAIL_CARD_SELECTOR,
   extractVideoIdFromHref,
   findThumbnailAnchor,
-  findThumbnailHost,
+  findMetadataRow,
   extractCardTitle,
   extractCardChannelName
 } from '../shared/youtube-parsing';
 
 const PROCESSED_ATTR = 'data-yqm-processed';
+const CONTAINER_CLASS = 'yqm-thumb-container';
+const ROW_CLASS = 'yqm-metadata-row';
+const ROW_PARENT_CLASS = 'yqm-metadata-row-parent';
 const OVERLAY_CLASS = 'yqm-thumb-overlay';
 
 type ThumbnailInfo = Pick<
@@ -41,24 +44,26 @@ function buildThumbnailInfo(container: Element, videoId: string, anchor: HTMLAnc
   };
 }
 
+// Docked into the views/age (or Shorts view-count) row rather than overlaid
+// on the thumbnail. The thumbnail is where YouTube's hover-preview player
+// lives, and nothing we tried — re-anchoring on host swap, chasing z-index,
+// even a viewport-fixed portal layer — could reliably stay above or ahead of
+// it. The metadata row is plain text YouTube doesn't touch on hover, so the
+// button just becomes part of normal document flow, right-aligned.
 function injectButton(container: Element, info: ThumbnailInfo): void {
-  const host = findThumbnailHost(container);
-  if (getComputedStyle(host).position === 'static') {
-    host.style.position = 'relative';
-  }
+  const row = findMetadataRow(container);
+  if (!row) return;
+  row.classList.add(ROW_CLASS);
+  // yt-content-metadata-view-model (the row's parent, for the non-Shorts
+  // layout) is an unstyled custom element and defaults to display:inline,
+  // which shrink-wraps it to the row's own content instead of filling the
+  // genuinely-wide box above it — that's why margin-left: auto on the row
+  // has no space to push into. Forcing it to a block that fills its parent
+  // routes that real width down to the row.
+  if (row.parentElement) row.parentElement.classList.add(ROW_PARENT_CLASS);
   const button = createAddToQueueButton(info);
   button.classList.add(OVERLAY_CLASS);
-  host.appendChild(button);
-
-  // YouTube's hover-preview player can wipe/rebuild the host's children,
-  // evicting our button. Re-append only when it's actually gone — reacting
-  // to mere reordering would fight YouTube's own re-append-to-front logic
-  // for its preview frames and loop the two observers against each other
-  // indefinitely (this hung the tab in testing).
-  const keepMounted = new MutationObserver(() => {
-    if (!host.contains(button)) host.appendChild(button);
-  });
-  keepMounted.observe(host, { childList: true });
+  row.appendChild(button);
 }
 
 function processContainer(container: Element): void {
@@ -67,11 +72,20 @@ function processContainer(container: Element): void {
   const videoId = extractVideoIdFromHref(anchor?.getAttribute('href'));
   if (!videoId) return;
   container.setAttribute(PROCESSED_ATTR, 'true');
+  container.classList.add(CONTAINER_CLASS);
   injectButton(container, buildThumbnailInfo(container, videoId, anchor));
 }
 
 export function scanForThumbnails(root: ParentNode = document): void {
-  root.querySelectorAll(THUMBNAIL_CARD_SELECTOR).forEach(processContainer);
+  root.querySelectorAll(THUMBNAIL_CARD_SELECTOR).forEach((container) => {
+    // THUMBNAIL_CARD_SELECTOR mixes legacy and yt-lockup-view-model-era
+    // selectors, and YouTube now nests one inside the other for the same
+    // visual card (e.g. yt-lockup-view-model inside ytd-rich-item-renderer).
+    // Without this check both match and each would get its own button.
+    // Defer to the innermost match.
+    if (container.querySelector(THUMBNAIL_CARD_SELECTOR)) return;
+    processContainer(container);
+  });
 }
 
 let observer: MutationObserver | null = null;
