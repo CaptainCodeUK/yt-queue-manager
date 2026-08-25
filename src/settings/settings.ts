@@ -2,6 +2,7 @@ import { getActiveQueue, getSettings, setActiveQueue, setSettings } from '../sha
 import { sendMessage } from '../shared/messaging';
 import { buildQueueExportText, parseQueueExport } from '../shared/queue-export';
 
+const watchedThresholdInput = document.getElementById('watched-threshold-input') as HTMLInputElement;
 const syncToggle = document.getElementById('experimental-sync-toggle') as HTMLInputElement;
 const syncNowButton = document.getElementById('sync-now-button') as HTMLButtonElement;
 const syncNowStatus = document.getElementById('sync-now-status')!;
@@ -12,8 +13,21 @@ const importTextarea = document.getElementById('import-textarea') as HTMLTextAre
 const importButton = document.getElementById('import-button') as HTMLButtonElement;
 const importStatus = document.getElementById('import-status')!;
 
+function normalizedWatchedThresholdPercent(value: number): number {
+  if (!Number.isFinite(value)) return 95;
+  return Math.min(100, Math.max(1, Math.round(value)));
+}
+
 getSettings().then((settings) => {
+  watchedThresholdInput.value = String(normalizedWatchedThresholdPercent(settings.watchedThresholdPercent));
   syncToggle.checked = settings.experimentalSync;
+});
+
+watchedThresholdInput.addEventListener('change', async () => {
+  const current = await getSettings();
+  const threshold = normalizedWatchedThresholdPercent(Number(watchedThresholdInput.value));
+  watchedThresholdInput.value = String(threshold);
+  await setSettings({ ...current, watchedThresholdPercent: threshold });
 });
 
 syncToggle.addEventListener('change', async () => {

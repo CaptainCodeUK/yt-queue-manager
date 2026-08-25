@@ -23,6 +23,14 @@ body {
   cursor: pointer;
 }
 
+.yqm-threshold-input {
+  width: 64px;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #d3d3d3;
+  border-radius: 4px;
+}
+
 .yqm-settings-caption {
   color: #606060;
   font-size: 12px;

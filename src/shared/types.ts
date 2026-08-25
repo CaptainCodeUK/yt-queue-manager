@@ -33,6 +33,7 @@ export interface SavedPlaylist {
 
 export interface Settings {
   autoAdvance: boolean;
+  watchedThresholdPercent: number;
   suppressNativeQueueUI: boolean;
   experimentalSync: boolean;
 }
@@ -57,6 +58,7 @@ export function emptyActiveQueue(): ActiveQueue {
 export function defaultSettings(): Settings {
   return {
     autoAdvance: true,
+    watchedThresholdPercent: 95,
     suppressNativeQueueUI: true,
     experimentalSync: false
   };

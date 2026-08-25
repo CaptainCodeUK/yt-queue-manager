@@ -79,6 +79,11 @@ function disableNativeAutonav(): void {
   }
 }
 
+function normalizedThresholdPercent(value: number): number {
+  if (!Number.isFinite(value)) return 95;
+  return Math.min(100, Math.max(1, Math.round(value)));
+}
+
 async function handleEnded(videoId: string): Promise<void> {
   const settings = await getSettings();
   if (!settings.autoAdvance) return;
@@ -111,6 +116,11 @@ export function monitorWatchPageVideo(videoId: string): void {
   void syncCurrentItemAndClaimDriver(videoId);
 
   let hasHandledEnd = false;
+  let watchedThresholdRatio = 0.95;
+  void getSettings().then((settings) => {
+    watchedThresholdRatio = normalizedThresholdPercent(settings.watchedThresholdPercent) / 100;
+  });
+
   const attach = () => {
     if (signal.aborted) return;
     const video = document.querySelector<HTMLVideoElement>('video.html5-main-video');
@@ -130,7 +140,8 @@ export function monitorWatchPageVideo(videoId: string): void {
       'timeupdate',
       () => {
         if (hasHandledEnd) return;
-        if (video.duration && video.currentTime >= video.duration - 0.5) {
+        if (!video.duration || !Number.isFinite(video.duration) || video.duration <= 0) return;
+        if (video.currentTime / video.duration >= watchedThresholdRatio) {
           onEnded();
         }
       },
