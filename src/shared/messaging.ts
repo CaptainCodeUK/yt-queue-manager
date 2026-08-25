@@ -13,6 +13,16 @@ export interface ClaimDriverResponse {
   windowId: number;
 }
 
+function isContextInvalidatedError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.message.toLowerCase().includes('extension context invalidated');
+}
+
 export function sendMessage<T = unknown>(message: ExtensionMessage): Promise<T> {
-  return chrome.runtime.sendMessage(message);
+  return chrome.runtime.sendMessage(message).catch((error: unknown) => {
+    if (isContextInvalidatedError(error)) {
+      return undefined as T;
+    }
+    throw error;
+  });
 }

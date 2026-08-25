@@ -43,6 +43,26 @@ async function isDrivingThisVideo(videoId: string): Promise<boolean> {
   return queue.drivingTabId === myTabId && queue.currentItemId === videoId;
 }
 
+/**
+ * Recovers driver ownership when it was cleared due to stale heartbeats,
+ * but only when this tab is still on the queue's current item.
+ */
+async function ensureDrivingThisVideo(videoId: string): Promise<boolean> {
+  if (await isDrivingThisVideo(videoId)) return true;
+
+  const queue = await getActiveQueue();
+  if (queue.currentItemId !== videoId) return false;
+
+  if (queue.drivingTabId !== null && queue.drivingTabId !== myTabId) {
+    return false;
+  }
+
+  const response = await sendMessage<ClaimDriverResponse | undefined>({ type: 'claimDriver' });
+  if (!response) return false;
+  myTabId = response.tabId;
+  return true;
+}
+
 async function correctDuration(videoId: string, seconds: number): Promise<void> {
   const rounded = Math.round(seconds);
   if (!Number.isFinite(rounded) || rounded <= 0) return;
@@ -62,7 +82,7 @@ function disableNativeAutonav(): void {
 async function handleEnded(videoId: string): Promise<void> {
   const settings = await getSettings();
   if (!settings.autoAdvance) return;
-  if (!(await isDrivingThisVideo(videoId))) return;
+  if (!(await ensureDrivingThisVideo(videoId))) return;
 
   const queue = await getActiveQueue();
   const { queue: updated, next } = advance(queue, videoId);

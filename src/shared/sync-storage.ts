@@ -19,6 +19,11 @@ const SYNC_TOTAL_BUDGET_BYTES = 90000;
 
 const PUSH_DEBOUNCE_MS = 2000;
 
+function isContextInvalidatedError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.message.toLowerCase().includes('extension context invalidated');
+}
+
 export interface SyncMeta {
   version: 1;
   updatedAt: number;
@@ -112,8 +117,13 @@ export function decideMerge(local: ActiveQueue, remote: RemoteQueue): ActiveQueu
 }
 
 async function readExistingChunkKeys(): Promise<string[]> {
-  const all = await chrome.storage.sync.get(null);
-  return Object.keys(all).filter((key) => key.startsWith(SYNC_CHUNK_KEY_PREFIX));
+  try {
+    const all = await chrome.storage.sync.get(null);
+    return Object.keys(all).filter((key) => key.startsWith(SYNC_CHUNK_KEY_PREFIX));
+  } catch (error) {
+    if (isContextInvalidatedError(error)) return [];
+    throw error;
+  }
 }
 
 export async function pushActiveQueueToSync(queue: ActiveQueue): Promise<void> {
@@ -147,6 +157,7 @@ export async function pushActiveQueueToSync(queue: ActiveQueue): Promise<void> {
     });
     if (staleKeys.length > 0) await chrome.storage.sync.remove(staleKeys);
   } catch (error) {
+    if (isContextInvalidatedError(error)) return;
     console.warn('[yt-queue-manager] failed to push queue to sync storage', error);
   }
 }
@@ -169,6 +180,7 @@ export async function pullActiveQueueFromSync(): Promise<RemoteQueue | null> {
 
     return { items, currentItemId: meta.currentItemId, updatedAt: meta.updatedAt };
   } catch (error) {
+    if (isContextInvalidatedError(error)) return null;
     console.warn('[yt-queue-manager] failed to pull queue from sync storage', error);
     return null;
   }
@@ -220,8 +232,14 @@ async function applyIncomingSync(): Promise<void> {
   // when nothing has ever been written locally, which would otherwise look
   // newer than any real remote queue and reject it every time — exactly the
   // case on a brand-new device that's never had an activeQueue write.
-  const raw = await chrome.storage.local.get('activeQueue');
-  const local = raw.activeQueue as ActiveQueue | undefined;
+  let local: ActiveQueue | undefined;
+  try {
+    const raw = await chrome.storage.local.get('activeQueue');
+    local = raw.activeQueue as ActiveQueue | undefined;
+  } catch (error) {
+    if (!isContextInvalidatedError(error)) throw error;
+    return;
+  }
 
   const merged: ActiveQueue | null = local
     ? decideMerge(local, remote)
@@ -264,7 +282,8 @@ export function initSyncBridge(): void {
   if (syncBridgeInitialized) return;
   syncBridgeInitialized = true;
 
-  chrome.storage.onChanged.addListener((changes, areaName) => {
+  try {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local') {
       const settingsChange = changes.settings;
       if (settingsChange) {
@@ -286,5 +305,8 @@ export function initSyncBridge(): void {
       const touchedSyncData = SYNC_META_KEY in changes || Object.keys(changes).some((key) => key.startsWith(SYNC_CHUNK_KEY_PREFIX));
       if (touchedSyncData) void applyIncomingSync();
     }
-  });
+    });
+  } catch (error) {
+    if (!isContextInvalidatedError(error)) throw error;
+  }
 }

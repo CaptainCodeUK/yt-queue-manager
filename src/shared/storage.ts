@@ -16,13 +16,29 @@ const DEFAULTS: StorageSchema = {
   settings: defaultSettings()
 };
 
+function isContextInvalidatedError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return message.includes('extension context invalidated');
+}
+
 export async function getValue<K extends StorageKey>(key: K): Promise<StorageSchema[K]> {
-  const result = await chrome.storage.local.get(key);
-  return (result[key] as StorageSchema[K] | undefined) ?? DEFAULTS[key];
+  try {
+    const result = await chrome.storage.local.get(key);
+    return (result[key] as StorageSchema[K] | undefined) ?? DEFAULTS[key];
+  } catch (error) {
+    if (isContextInvalidatedError(error)) return DEFAULTS[key];
+    throw error;
+  }
 }
 
 export async function setValue<K extends StorageKey>(key: K, value: StorageSchema[K]): Promise<void> {
-  await chrome.storage.local.set({ [key]: value });
+  try {
+    await chrome.storage.local.set({ [key]: value });
+  } catch (error) {
+    if (isContextInvalidatedError(error)) return;
+    throw error;
+  }
 }
 
 export async function getActiveQueue(): Promise<ActiveQueue> {
@@ -73,6 +89,18 @@ export function subscribe<K extends StorageKey>(
     if (change === undefined) return;
     callback((change.newValue as StorageSchema[K] | undefined) ?? DEFAULTS[key]);
   };
-  chrome.storage.onChanged.addListener(listener);
-  return () => chrome.storage.onChanged.removeListener(listener);
+  try {
+    chrome.storage.onChanged.addListener(listener);
+  } catch (error) {
+    if (isContextInvalidatedError(error)) return () => {};
+    throw error;
+  }
+
+  return () => {
+    try {
+      chrome.storage.onChanged.removeListener(listener);
+    } catch (error) {
+      if (!isContextInvalidatedError(error)) throw error;
+    }
+  };
 }

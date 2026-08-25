@@ -7,10 +7,10 @@ import { initSyncBridge, forceSync } from '../shared/sync-storage';
 // service workers are killed/restarted at will, so chrome.storage.local is
 // always re-read on each event, never trusted from module-level variables.
 
-// Tolerate a couple of missed heartbeats (tab backgrounded, brief network
-// hiccup) before treating the driver as gone — the driving tab's content
-// script pings every HEARTBEAT_INTERVAL_MS via the 'heartbeat' message.
-const STALE_DRIVER_THRESHOLD_MS = HEARTBEAT_INTERVAL_MS * 3;
+// Tabs running for hours can get timer-throttled (especially when hidden),
+// so heartbeats may arrive much later than HEARTBEAT_INTERVAL_MS. Keep a
+// generous threshold to avoid dropping an otherwise healthy driving tab.
+const STALE_DRIVER_THRESHOLD_MS = HEARTBEAT_INTERVAL_MS * 10;
 const STALE_DRIVER_ALARM = 'yqm-stale-driver-check';
 
 async function claimDriver(tabId: number, windowId: number): Promise<ClaimDriverResponse> {
