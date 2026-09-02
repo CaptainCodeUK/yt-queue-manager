@@ -1,5 +1,5 @@
 import { getActiveQueue, subscribe, updateActiveQueue, getSavedPlaylists, setSavedPlaylists } from '../shared/storage';
-import { removeItem, reorder, clearPlayed, toSavedPlaylist, loadPlaylist, clearActiveQueue } from '../shared/queue-engine';
+import { removeItem, reorder, clearPlayed, toSavedPlaylist, loadPlaylist, clearActiveQueue, moveItem } from '../shared/queue-engine';
 import { renderQueueList } from '../shared/queue-list-view';
 import { sendMessage } from '../shared/messaging';
 import { ActiveQueue, SavedPlaylist } from '../shared/types';
@@ -15,7 +15,8 @@ function renderQueue(queue: ActiveQueue): void {
     onReorder: (orderedIds) => void updateActiveQueue((q) => reorder(q, orderedIds)),
     onRemove: (id) => void updateActiveQueue((q) => removeItem(q, id)),
     onPlayNow: (id) => void sendMessage({ type: 'navigateToVideo', videoId: id }),
-    onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q))
+    onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q)),
+    onMove: (id, target) => void updateActiveQueue((q) => moveItem(q, id, target))
   });
   queueSection.querySelector('.yqm-queue-item.current')?.scrollIntoView({ block: 'nearest' });
 }

@@ -1,11 +1,12 @@
 import { ActiveQueue, VideoId } from './types';
-import { computeTotals, formatDuration } from './queue-engine';
+import { MoveTarget, computeTotals, formatDuration } from './queue-engine';
 
 export interface QueueListCallbacks {
   onReorder: (orderedIds: VideoId[]) => void;
   onRemove: (id: VideoId) => void;
   onPlayNow: (id: VideoId) => void;
   onClearPlayed: () => void;
+  onMove: (id: VideoId, target: MoveTarget) => void;
 }
 
 function totalsLabel(totals: ReturnType<typeof computeTotals>): string {
@@ -51,7 +52,7 @@ export function renderQueueList(container: HTMLElement, queue: ActiveQueue, call
   const list = document.createElement('ul');
   list.className = 'yqm-queue-list';
 
-  sorted.forEach((item) => {
+  sorted.forEach((item, index) => {
     const li = document.createElement('li');
     li.className = 'yqm-queue-item';
     li.draggable = true;
@@ -80,6 +81,31 @@ export function renderQueueList(container: HTMLElement, queue: ActiveQueue, call
     duration.className = 'yqm-item-duration';
     duration.textContent = item.durationSeconds !== null ? formatDuration(item.durationSeconds) : '—';
     li.appendChild(duration);
+
+    const moveControls = document.createElement('span');
+    moveControls.className = 'yqm-move-controls';
+    const isFirst = index === 0;
+    const isLast = index === sorted.length - 1;
+    const moveButtons: Array<[MoveTarget, string, string, boolean]> = [
+      ['start', '⤒', 'Move to start', isFirst],
+      ['up', '▲', 'Move up', isFirst],
+      ['down', '▼', 'Move down', isLast],
+      ['end', '⤓', 'Move to end', isLast]
+    ];
+    moveButtons.forEach(([target, glyph, label, disabled]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `yqm-move-button yqm-move-${target}`;
+      button.title = label;
+      button.textContent = glyph;
+      button.disabled = disabled;
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        callbacks.onMove(item.id, target);
+      });
+      moveControls.appendChild(button);
+    });
+    li.appendChild(moveControls);
 
     const playButton = document.createElement('button');
     playButton.type = 'button';

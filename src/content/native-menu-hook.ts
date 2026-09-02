@@ -1,4 +1,4 @@
-import { addVideoToQueue, ADD_TO_QUEUE_ICON, ADD_TO_QUEUE_LABEL } from './add-to-queue-button';
+import { AddMode, addModeIcon, addModeLabel, addVideoToQueue } from './add-to-queue-button';
 import {
   THUMBNAIL_CARD_SELECTOR,
   WATCH_PAGE_CONTAINER_SELECTOR,
@@ -51,26 +51,33 @@ function injectMenuItem(popup: Element): void {
   const video = pending;
 
   const listbox = popup.querySelector('tp-yt-paper-listbox, #items') ?? popup;
-  const item = document.createElement('div');
-  item.className = MENU_ITEM_CLASS;
-  item.setAttribute('role', 'menuitem');
-  item.setAttribute('data-video-id', video.videoId);
-  item.innerHTML = `<span class="yqm-menu-item-icon">${ADD_TO_QUEUE_ICON}</span><span>${ADD_TO_QUEUE_LABEL}</span>`;
-  item.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void addVideoToQueue({
-      id: video.videoId,
-      title: video.title,
-      channelName: '',
-      thumbnailUrl: `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`,
-      durationSeconds: null,
-      durationSource: 'unknown'
-    });
-    closeNativeMenu();
-  });
 
-  listbox.prepend(item);
+  const buildItem = (mode: AddMode): HTMLDivElement => {
+    const item = document.createElement('div');
+    item.className = MENU_ITEM_CLASS;
+    item.setAttribute('role', 'menuitem');
+    item.setAttribute('data-video-id', video.videoId);
+    item.innerHTML = `<span class="yqm-menu-item-icon">${addModeIcon(mode)}</span><span>${addModeLabel(mode)}</span>`;
+    item.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void addVideoToQueue(
+        {
+          id: video.videoId,
+          title: video.title,
+          channelName: '',
+          thumbnailUrl: `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`,
+          durationSeconds: null,
+          durationSource: 'unknown'
+        },
+        mode
+      );
+      closeNativeMenu();
+    });
+    return item;
+  };
+
+  listbox.prepend(buildItem('next'), buildItem('last'));
 }
 
 function watchForPopup(): void {

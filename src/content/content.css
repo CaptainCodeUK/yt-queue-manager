@@ -7,10 +7,17 @@
 }
 
 .yqm-watch-page-button-container {
-  position: fixed;
+  position: absolute;
   right: 16px;
-  bottom: 16px;
-  z-index: 2200;
+  bottom: 56px;
+  z-index: 70;
+  pointer-events: auto;
+}
+
+.yqm-add-to-queue-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
 .yqm-add-to-queue-button {
@@ -42,12 +49,21 @@
   bottom: 4px;
   left: 4px;
   z-index: 100;
-  padding: 4px 8px;
-  font-size: 11px;
-  border-radius: 12px;
+  gap: 4px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.1s ease-in-out;
+}
+
+/* Thumbnails are too cramped for the full labels, so the overlay pair is
+   icon-only with the label carried by the tooltip. */
+.yqm-thumb-overlay .yqm-add-to-queue-button {
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
 }
 
 .yqm-thumb-container:hover .yqm-thumb-overlay {
@@ -82,4 +98,35 @@
   width: 20px;
   text-align: center;
   color: inherit;
+}
+
+/* Sized to sit flush with YouTube's own .ytp-button controls. */
+.yqm-player-prev,
+.yqm-player-next {
+  width: 40px;
+  height: 100%;
+  font-size: 16px;
+  line-height: 1;
+  color: #fff;
+  background: none;
+  border: none;
+  opacity: 0.9;
+  cursor: pointer;
+  vertical-align: top;
+}
+
+.yqm-player-prev:hover,
+.yqm-player-next:hover {
+  opacity: 1;
+}
+
+.yqm-player-prev[disabled],
+.yqm-player-next[disabled] {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.yqm-player-prev[hidden],
+.yqm-player-next[hidden] {
+  display: none;
 }

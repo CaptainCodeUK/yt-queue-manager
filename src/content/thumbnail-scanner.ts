@@ -1,4 +1,4 @@
-import { createAddToQueueButton } from './add-to-queue-button';
+import { createAddToQueueButtonGroup } from './add-to-queue-button';
 import { QueueItem } from '../shared/types';
 import {
   THUMBNAIL_CARD_SELECTOR,
@@ -56,7 +56,7 @@ function ensurePositioned(el: HTMLElement): void {
 function injectButton(container: Element, info: ThumbnailInfo): void {
   const host = findThumbnailHost(container);
   ensurePositioned(host);
-  const button = createAddToQueueButton(info);
+  const button = createAddToQueueButtonGroup(info, { compact: true });
   button.classList.add(OVERLAY_CLASS);
   host.appendChild(button);
 

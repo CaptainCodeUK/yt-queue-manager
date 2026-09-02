@@ -24,6 +24,45 @@ export function addItem(queue: ActiveQueue, input: NewQueueItemInput): ActiveQue
   return { ...queue, items: [...queue.items, newItem] };
 }
 
+/** Adds a video directly after the current item. No-op if the video is already present. */
+export function addItemNext(queue: ActiveQueue, input: NewQueueItemInput): ActiveQueue {
+  if (queue.items.some((item) => item.id === input.id)) {
+    return queue;
+  }
+  const newItem: QueueItem = {
+    ...input,
+    played: false,
+    addedAt: Date.now(),
+    position: 0
+  };
+  const ordered = sortedByPosition(queue.items);
+  const currentIndex = queue.currentItemId
+    ? ordered.findIndex((item) => item.id === queue.currentItemId)
+    : -1;
+  ordered.splice(currentIndex + 1, 0, newItem);
+  const items = ordered.map((item, index) => ({ ...item, position: index }));
+  return { ...queue, items };
+}
+
+export type MoveTarget = 'start' | 'up' | 'down' | 'end';
+
+/** Moves an item within the queue. No-op if the item is missing or already at that boundary. */
+export function moveItem(queue: ActiveQueue, id: VideoId, target: MoveTarget): ActiveQueue {
+  const ordered = sortedByPosition(queue.items);
+  const from = ordered.findIndex((item) => item.id === id);
+  if (from === -1) return queue;
+
+  const last = ordered.length - 1;
+  const to =
+    target === 'start' ? 0 : target === 'end' ? last : target === 'up' ? from - 1 : from + 1;
+  if (to === from || to < 0 || to > last) return queue;
+
+  const [moved] = ordered.splice(from, 1);
+  ordered.splice(to, 0, moved);
+  const items = ordered.map((item, index) => ({ ...item, position: index }));
+  return { ...queue, items };
+}
+
 export function removeItem(queue: ActiveQueue, id: VideoId): ActiveQueue {
   const items = queue.items.filter((item) => item.id !== id);
   const currentItemId = queue.currentItemId === id ? null : queue.currentItemId;
@@ -86,8 +125,17 @@ export function nextUnplayed(queue: ActiveQueue, afterId: VideoId | null): Queue
   return null;
 }
 
-/** Marks the given item played and advances currentItemId to the next unplayed item. */
-export function advance(queue: ActiveQueue, finishedItemId: VideoId): { queue: ActiveQueue; next: QueueItem | null } {
+/** Returns the item immediately before `beforeId` in queue order, ignoring played state so finished videos can be revisited. */
+export function previousItem(queue: ActiveQueue, beforeId: VideoId | null): QueueItem | null {
+  const ordered = sortedByPosition(queue.items);
+  if (ordered.length === 0) return null;
+  if (!beforeId) return null;
+  const index = ordered.findIndex((item) => item.id === beforeId);
+  if (index <= 0) return null;
+  return ordered[index - 1];
+}
+
+/** Marks the given item played and advances currentItemId to the next unplayed item. */export function advance(queue: ActiveQueue, finishedItemId: VideoId): { queue: ActiveQueue; next: QueueItem | null } {
   const played = markPlayed(queue, finishedItemId, true);
   const next = nextUnplayed(played, finishedItemId);
   return { queue: { ...played, currentItemId: next?.id ?? null }, next };

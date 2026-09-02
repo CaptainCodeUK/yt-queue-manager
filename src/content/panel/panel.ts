@@ -1,5 +1,5 @@
 import { getActiveQueue, subscribe, updateActiveQueue } from '../../shared/storage';
-import { removeItem, reorder, clearPlayed, clearActiveQueue } from '../../shared/queue-engine';
+import { removeItem, reorder, clearPlayed, clearActiveQueue, moveItem } from '../../shared/queue-engine';
 import { renderQueueList } from '../../shared/queue-list-view';
 import { ActiveQueue } from '../../shared/types';
 import { watchUrl } from '../../shared/youtube-parsing';
@@ -78,7 +78,8 @@ function render(queue: ActiveQueue): void {
     onReorder: (orderedIds) => void updateActiveQueue((q) => reorder(q, orderedIds)),
     onRemove: (id) => void updateActiveQueue((q) => removeItem(q, id)),
     onPlayNow: (id) => spaNavigate(watchUrl(id)),
-    onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q))
+    onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q)),
+    onMove: (id, target) => void updateActiveQueue((q) => moveItem(q, id, target))
   });
 
   if (currentChanged && dropdown?.classList.contains('yqm-open')) {

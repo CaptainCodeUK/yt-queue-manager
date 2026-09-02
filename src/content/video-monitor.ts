@@ -1,5 +1,5 @@
 import { getActiveQueue, updateActiveQueue, getSettings } from '../shared/storage';
-import { advance, updateDuration } from '../shared/queue-engine';
+import { advance, markPlayed, updateDuration } from '../shared/queue-engine';
 import { sendMessage, HEARTBEAT_INTERVAL_MS } from '../shared/messaging';
 import { ClaimDriverResponse } from '../shared/messaging';
 import { watchUrl } from '../shared/youtube-parsing';
@@ -84,6 +84,13 @@ function normalizedThresholdPercent(value: number): number {
   return Math.min(100, Math.max(1, Math.round(value)));
 }
 
+async function markWatched(videoId: string): Promise<void> {
+  const queue = await getActiveQueue();
+  const item = queue.items.find((i) => i.id === videoId);
+  if (!item || item.played) return;
+  await updateActiveQueue((q) => markPlayed(q, videoId, true));
+}
+
 async function handleEnded(videoId: string): Promise<void> {
   const settings = await getSettings();
   if (!settings.autoAdvance) return;
@@ -116,6 +123,7 @@ export function monitorWatchPageVideo(videoId: string): void {
   void syncCurrentItemAndClaimDriver(videoId);
 
   let hasHandledEnd = false;
+  let hasMarkedWatched = false;
   let watchedThresholdRatio = 0.95;
   void getSettings().then((settings) => {
     watchedThresholdRatio = normalizedThresholdPercent(settings.watchedThresholdPercent) / 100;
@@ -139,9 +147,13 @@ export function monitorWatchPageVideo(videoId: string): void {
     video.addEventListener(
       'timeupdate',
       () => {
-        if (hasHandledEnd) return;
         if (!video.duration || !Number.isFinite(video.duration) || video.duration <= 0) return;
-        if (video.currentTime / video.duration >= watchedThresholdRatio) {
+        if (!hasMarkedWatched && video.currentTime / video.duration >= watchedThresholdRatio) {
+          hasMarkedWatched = true;
+          void markWatched(videoId);
+        }
+        // Some transitions swallow the 'ended' event; catch the final frame instead.
+        if (video.ended && video.duration - video.currentTime < 0.25) {
           onEnded();
         }
       },
