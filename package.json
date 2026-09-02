@@ -1,11 +1,12 @@
 {
   "name": "yt-queue-manager",
   "type": "module",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "release": "npm run build && rm -rf .release && mkdir -p .release/yt-queue-manager && cp -R dist/. .release/yt-queue-manager/ && (cd .release && zip -qrFS ../releases/yt-queue-manager-v$npm_package_version.zip yt-queue-manager)",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
