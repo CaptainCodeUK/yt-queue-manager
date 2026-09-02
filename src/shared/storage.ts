@@ -58,7 +58,8 @@ export async function setSavedPlaylists(playlists: SavedPlaylist[]): Promise<voi
 }
 
 export async function getSettings(): Promise<Settings> {
-  return getValue('settings');
+  const settings = await getValue('settings');
+  return { ...defaultSettings(), ...settings };
 }
 
 export async function setSettings(settings: Settings): Promise<void> {

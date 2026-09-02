@@ -7,6 +7,7 @@ import { startThumbnailScanner, scanForThumbnails } from './thumbnail-scanner';
 import { startPanel } from './panel/panel';
 import { startNativeUiSuppression, runNativeUiSuppression } from './native-ui-suppress';
 import { startNativeMenuHook } from './native-menu-hook';
+import { startHistorySync } from './history-sync';
 
 const BUTTON_CONTAINER_ID = 'yqm-watch-page-button-container';
 
@@ -55,5 +56,6 @@ onYouTubeNavigate(() => {
 startThumbnailScanner();
 startNativeUiSuppression();
 startNativeMenuHook();
+startHistorySync();
 
 console.log('[yt-queue-manager] content script loaded');

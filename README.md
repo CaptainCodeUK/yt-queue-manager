@@ -30,6 +30,7 @@ A Chrome extension that replaces YouTube's built-in queue. Persistent, reorderab
 - Toggle auto-advance and YouTube native queue UI suppression
 - Export the queue to text and import it on another device
 - Experimental Chrome Sync to mirror the queue across devices
+- Manual watched-history reconciliation from loaded YouTube History entries
 
 ## Tech stack
 
@@ -103,4 +104,4 @@ src/
 
 ## Privacy
 
-No data is collected. The queue is stored locally in `chrome.storage.local`. If Chrome Sync is enabled, queue data follows Google's own sync privacy policy. The extension makes no outbound network requests of its own.
+No data is collected. The queue is stored locally in `chrome.storage.local`. If Chrome Sync is enabled, queue data follows Google's own sync privacy policy. The extension makes no outbound network requests of its own. Watched-history reconciliation is manual and reads only rendered entries on the YouTube History page; it does not modify YouTube history or access a private history API.
