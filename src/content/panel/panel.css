@@ -77,6 +77,29 @@
   padding: 24px 0;
 }
 
+.yqm-queue-tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e5e5;
+  margin-bottom: 8px;
+}
+
+.yqm-queue-tab {
+  flex: 1;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #606060;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 500;
+  padding: 6px 2px;
+}
+
+.yqm-queue-tab.selected {
+  border-bottom-color: #5e35b1;
+  color: #5e35b1;
+}
+
 .yqm-totals {
   color: #606060;
   margin-bottom: 8px;

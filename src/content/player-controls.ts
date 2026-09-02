@@ -1,5 +1,5 @@
 import { getActiveQueue, subscribe, updateActiveQueue } from '../shared/storage';
-import { advance, nextUnplayed, previousItem } from '../shared/queue-engine';
+import { advance, nextUnplayed, normalizeQueueListView, previousItem } from '../shared/queue-engine';
 import { ActiveQueue } from '../shared/types';
 import { watchUrl } from '../shared/youtube-parsing';
 import { spaNavigate } from './navigation';
@@ -28,15 +28,16 @@ function createButton(className: string, glyph: string, label: string): HTMLButt
 
 async function goToNext(): Promise<void> {
   const queue = await getActiveQueue();
+  const playbackView = normalizeQueueListView(queue.playbackView);
   const current = queue.currentItemId;
   if (!current) {
-    const first = nextUnplayed(queue, null);
+    const first = nextUnplayed(queue, null, playbackView);
     if (!first) return;
     await updateActiveQueue((q) => ({ ...q, currentItemId: first.id }));
     spaNavigate(watchUrl(first.id));
     return;
   }
-  const { queue: updated, next } = advance(queue, current);
+  const { queue: updated, next } = advance(queue, current, playbackView);
   if (!next) return;
   await updateActiveQueue(() => updated);
   spaNavigate(watchUrl(next.id));
@@ -49,7 +50,7 @@ async function goToPrevious(): Promise<void> {
     return;
   }
   const queue = await getActiveQueue();
-  const previous = previousItem(queue, queue.currentItemId);
+  const previous = previousItem(queue, queue.currentItemId, normalizeQueueListView(queue.playbackView));
   if (!previous) return;
   await updateActiveQueue((q) => ({
     ...q,
@@ -71,7 +72,7 @@ function applyQueueState(queue: ActiveQueue): void {
   // Previous also restarts the current video, so it stays enabled whenever
   // a queue exists; only forward movement can genuinely run out of targets.
   prevButton.disabled = false;
-  nextButton.disabled = nextUnplayed(queue, queue.currentItemId) === null;
+  nextButton.disabled = nextUnplayed(queue, queue.currentItemId, normalizeQueueListView(queue.playbackView)) === null;
 }
 
 function mount(): boolean {

@@ -1,5 +1,6 @@
 import { ExtensionMessage, ClaimDriverResponse, HEARTBEAT_INTERVAL_MS } from '../shared/messaging';
 import { getActiveQueue, updateActiveQueue, getValue, setValue } from '../shared/storage';
+import { QueueListView } from '../shared/types';
 import { watchUrl } from '../shared/youtube-parsing';
 import { initSyncBridge, forceSync } from '../shared/sync-storage';
 
@@ -102,7 +103,8 @@ async function navigateExistingTab(tab: chrome.tabs.Tab, videoId: string): Promi
  * current YouTube tab over opening a new one, and preferring an in-page
  * SPA transition over a full reload.
  */
-async function navigateToVideo(videoId: string): Promise<void> {
+async function navigateToVideo(videoId: string, playbackView: QueueListView): Promise<void> {
+  await updateActiveQueue((queue) => ({ ...queue, currentItemId: videoId, playbackView }));
   const queue = await getActiveQueue();
 
   if (queue.drivingTabId !== null) {
@@ -148,7 +150,7 @@ chrome.runtime.onMessage.addListener(
           sendResponse(undefined);
           return;
         case 'navigateToVideo':
-          await navigateToVideo(message.videoId);
+          await navigateToVideo(message.videoId, message.playbackView);
           sendResponse(undefined);
           return;
         case 'forceSync':

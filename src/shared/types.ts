@@ -2,6 +2,8 @@ export type VideoId = string;
 
 export type DurationSource = 'player' | 'ytInitialData' | 'domBadge' | 'unknown';
 
+export type QueueListView = 'all' | 'short' | 'long' | 'essays';
+
 export interface QueueItem {
   id: VideoId;
   title: string;
@@ -18,6 +20,8 @@ export interface QueueItem {
 export interface ActiveQueue {
   items: QueueItem[];
   currentItemId: VideoId | null;
+  selectedView: QueueListView;
+  playbackView: QueueListView;
   drivingTabId: number | null;
   drivingWindowId: number | null;
   updatedAt: number;
@@ -49,6 +53,8 @@ export function emptyActiveQueue(): ActiveQueue {
   return {
     items: [],
     currentItemId: null,
+    selectedView: 'all',
+    playbackView: 'all',
     drivingTabId: null,
     drivingWindowId: null,
     updatedAt: Date.now()

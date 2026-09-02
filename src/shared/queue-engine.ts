@@ -1,4 +1,4 @@
-import { ActiveQueue, QueueItem, SavedPlaylist, VideoId, emptyActiveQueue } from './types';
+import { ActiveQueue, QueueItem, QueueListView, SavedPlaylist, VideoId, emptyActiveQueue } from './types';
 
 export type NewQueueItemInput = Omit<QueueItem, 'played' | 'addedAt' | 'position'>;
 
@@ -8,6 +8,23 @@ function nextPosition(items: QueueItem[]): number {
 
 function sortedByPosition(items: QueueItem[]): QueueItem[] {
   return [...items].sort((a, b) => a.position - b.position);
+}
+
+export function normalizeQueueListView(view: QueueListView | undefined): QueueListView {
+  return view ?? 'all';
+}
+
+export function isInQueueListView(item: QueueItem, view: QueueListView): boolean {
+  if (view === 'all') return true;
+  const durationSeconds = item.durationSeconds;
+  if (view === 'short') return durationSeconds === null || durationSeconds < 600;
+  if (durationSeconds === null) return false;
+  if (view === 'long') return durationSeconds >= 600 && durationSeconds < 3600;
+  return durationSeconds >= 3600;
+}
+
+export function itemsForQueueListView(queue: ActiveQueue, view: QueueListView): QueueItem[] {
+  return sortedByPosition(queue.items).filter((item) => isInQueueListView(item, view));
 }
 
 /** Adds a video to the queue. No-op if the video is already present. */
@@ -78,6 +95,32 @@ export function clearPlayed(queue: ActiveQueue): ActiveQueue {
   return { ...queue, items, currentItemId };
 }
 
+/** Reorders only the items visible in a dynamic list, retaining all other canonical slots. */
+export function reorderInQueueListView(
+  queue: ActiveQueue,
+  orderedIds: VideoId[],
+  view: QueueListView
+): ActiveQueue {
+  if (view === 'all') return reorder(queue, orderedIds);
+
+  const visibleItems = itemsForQueueListView(queue, view);
+  const visibleById = new Map(visibleItems.map((item) => [item.id, item]));
+  const reorderedVisible = orderedIds.flatMap((id) => {
+    const item = visibleById.get(id);
+    if (!item) return [];
+    visibleById.delete(id);
+    return [item];
+  });
+  reorderedVisible.push(...visibleItems.filter((item) => visibleById.has(item.id)));
+
+  let visibleIndex = 0;
+  const items = sortedByPosition(queue.items).map((item, index) => ({
+    ...(isInQueueListView(item, view) ? reorderedVisible[visibleIndex++] : item),
+    position: index
+  }));
+  return { ...queue, items };
+}
+
 export function markPlayed(queue: ActiveQueue, id: VideoId, played = true): ActiveQueue {
   const items = queue.items.map((item) => (item.id === id ? { ...item, played } : item));
   return { ...queue, items };
@@ -115,8 +158,12 @@ export function reorder(queue: ActiveQueue, orderedIds: VideoId[]): ActiveQueue 
 }
 
 /** Returns the next unplayed item strictly after `afterId` in queue order, or the first unplayed item if `afterId` is null/not found. */
-export function nextUnplayed(queue: ActiveQueue, afterId: VideoId | null): QueueItem | null {
-  const ordered = sortedByPosition(queue.items);
+export function nextUnplayed(
+  queue: ActiveQueue,
+  afterId: VideoId | null,
+  view: QueueListView = 'all'
+): QueueItem | null {
+  const ordered = itemsForQueueListView(queue, view);
   const startIndex = afterId ? ordered.findIndex((item) => item.id === afterId) : -1;
   const searchFrom = startIndex === -1 ? 0 : startIndex + 1;
   for (let i = searchFrom; i < ordered.length; i++) {
@@ -126,8 +173,12 @@ export function nextUnplayed(queue: ActiveQueue, afterId: VideoId | null): Queue
 }
 
 /** Returns the item immediately before `beforeId` in queue order, ignoring played state so finished videos can be revisited. */
-export function previousItem(queue: ActiveQueue, beforeId: VideoId | null): QueueItem | null {
-  const ordered = sortedByPosition(queue.items);
+export function previousItem(
+  queue: ActiveQueue,
+  beforeId: VideoId | null,
+  view: QueueListView = 'all'
+): QueueItem | null {
+  const ordered = itemsForQueueListView(queue, view);
   if (ordered.length === 0) return null;
   if (!beforeId) return null;
   const index = ordered.findIndex((item) => item.id === beforeId);
@@ -135,9 +186,14 @@ export function previousItem(queue: ActiveQueue, beforeId: VideoId | null): Queu
   return ordered[index - 1];
 }
 
-/** Marks the given item played and advances currentItemId to the next unplayed item. */export function advance(queue: ActiveQueue, finishedItemId: VideoId): { queue: ActiveQueue; next: QueueItem | null } {
+/** Marks the given item played and advances currentItemId to the next unplayed item. */
+export function advance(
+  queue: ActiveQueue,
+  finishedItemId: VideoId,
+  view: QueueListView = 'all'
+): { queue: ActiveQueue; next: QueueItem | null } {
   const played = markPlayed(queue, finishedItemId, true);
-  const next = nextUnplayed(played, finishedItemId);
+  const next = nextUnplayed(played, finishedItemId, view);
   return { queue: { ...played, currentItemId: next?.id ?? null }, next };
 }
 
@@ -148,8 +204,8 @@ export interface QueueTotals {
   remainingUnknownCount: number;
 }
 
-export function computeTotals(queue: ActiveQueue): QueueTotals {
-  const ordered = sortedByPosition(queue.items);
+export function computeTotals(queue: ActiveQueue, view: QueueListView = 'all'): QueueTotals {
+  const ordered = itemsForQueueListView(queue, view);
   let totalSeconds = 0;
   let totalUnknownCount = 0;
   let remainingSeconds = 0;
@@ -199,12 +255,13 @@ export function toSavedPlaylist(queue: ActiveQueue, name: string, playlistId: st
 }
 
 /** Loads a saved playlist as the active queue. Played flags reset — a saved playlist is meant to be replayed fresh, unlike the active queue's played state during normal use. */
-export function loadPlaylist(playlist: SavedPlaylist): ActiveQueue {
+export function loadPlaylist(playlist: SavedPlaylist, selectedView: QueueListView = 'all'): ActiveQueue {
   const items = playlist.items.map((item) => ({ ...item, played: false }));
   return {
     ...emptyActiveQueue(),
     items,
-    currentItemId: items[0]?.id ?? null
+    currentItemId: items[0]?.id ?? null,
+    selectedView
   };
 }
 

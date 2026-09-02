@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { addItemNext, moveItem, previousItem } from './queue-engine';
+import {
+  advance,
+  isInQueueListView,
+  itemsForQueueListView,
+  nextUnplayed,
+  previousItem,
+  reorderInQueueListView,
+  addItemNext,
+  moveItem,
+  loadPlaylist
+} from './queue-engine';
 import { ActiveQueue, QueueItem, emptyActiveQueue } from './types';
 
 function makeItem(overrides: Partial<QueueItem>): QueueItem {
@@ -98,5 +108,53 @@ describe('previousItem', () => {
     const queue = makeQueue(['a', 'b']);
     expect(previousItem(queue, 'a')).toBeNull();
     expect(previousItem(queue, null)).toBeNull();
+  });
+});
+
+describe('dynamic queue list views', () => {
+  it('classifies exact duration boundaries and unknown videos', () => {
+    expect(isInQueueListView(makeItem({ durationSeconds: null }), 'short')).toBe(true);
+    expect(isInQueueListView(makeItem({ durationSeconds: 599 }), 'short')).toBe(true);
+    expect(isInQueueListView(makeItem({ durationSeconds: 600 }), 'long')).toBe(true);
+    expect(isInQueueListView(makeItem({ durationSeconds: 3599 }), 'long')).toBe(true);
+    expect(isInQueueListView(makeItem({ durationSeconds: 3600 }), 'essays')).toBe(true);
+  });
+
+  it('keeps canonical order when filtering and reorders only matching slots', () => {
+    const queue = makeQueue(['a', 'b', 'c', 'd']);
+    queue.items[0].durationSeconds = 60;
+    queue.items[1].durationSeconds = 1200;
+    queue.items[2].durationSeconds = 300;
+    queue.items[3].durationSeconds = 7200;
+    expect(itemsForQueueListView(queue, 'short').map((item) => item.id)).toEqual(['a', 'c']);
+    expect(reorderInQueueListView(queue, ['c', 'a'], 'short').items.map((item) => item.id)).toEqual([
+      'c',
+      'b',
+      'a',
+      'd'
+    ]);
+  });
+
+  it('navigates only matching, unplayed videos in a dynamic list', () => {
+    const queue = makeQueue(['a', 'b', 'c', 'd'], 'a');
+    queue.items[0].durationSeconds = 60;
+    queue.items[1].durationSeconds = 1200;
+    queue.items[2].durationSeconds = 120;
+    queue.items[3].durationSeconds = 180;
+    queue.items[2].played = true;
+    expect(nextUnplayed(queue, 'a', 'short')?.id).toBe('d');
+    expect(previousItem(queue, 'd', 'short')?.id).toBe('c');
+    expect(advance(queue, 'a', 'short').next?.id).toBe('d');
+  });
+
+  it('keeps the selected list when loading a saved playlist', () => {
+    const playlist = {
+      playlistId: 'playlist',
+      name: 'Saved',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      items: [makeItem({ id: 'short', durationSeconds: 60 })]
+    };
+    expect(loadPlaylist(playlist, 'short').selectedView).toBe('short');
   });
 });

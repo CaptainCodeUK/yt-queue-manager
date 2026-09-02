@@ -1,5 +1,5 @@
 import { getActiveQueue, subscribe, updateActiveQueue } from '../../shared/storage';
-import { removeItem, reorder, clearPlayed, clearActiveQueue, moveItem } from '../../shared/queue-engine';
+import { clearActiveQueue, clearPlayed, removeItem, reorderInQueueListView } from '../../shared/queue-engine';
 import { renderQueueList } from '../../shared/queue-list-view';
 import { ActiveQueue } from '../../shared/types';
 import { watchUrl } from '../../shared/youtube-parsing';
@@ -75,11 +75,13 @@ function render(queue: ActiveQueue): void {
   lastCurrentItemId = queue.currentItemId;
 
   renderQueueList(listContainer, queue, {
-    onReorder: (orderedIds) => void updateActiveQueue((q) => reorder(q, orderedIds)),
+    onReorder: (orderedIds) => void updateActiveQueue((q) => reorderInQueueListView(q, orderedIds, q.selectedView ?? 'all')),
     onRemove: (id) => void updateActiveQueue((q) => removeItem(q, id)),
-    onPlayNow: (id) => spaNavigate(watchUrl(id)),
+    onPlayNow: (id, playbackView) => {
+      void updateActiveQueue((q) => ({ ...q, currentItemId: id, playbackView })).then(() => spaNavigate(watchUrl(id)));
+    },
     onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q)),
-    onMove: (id, target) => void updateActiveQueue((q) => moveItem(q, id, target))
+    onViewChange: (selectedView) => void updateActiveQueue((q) => ({ ...q, selectedView }))
   });
 
   if (currentChanged && dropdown?.classList.contains('yqm-open')) {

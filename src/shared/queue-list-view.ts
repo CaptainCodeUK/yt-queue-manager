@@ -1,13 +1,20 @@
-import { ActiveQueue, VideoId } from './types';
-import { MoveTarget, computeTotals, formatDuration } from './queue-engine';
+import { ActiveQueue, QueueListView, VideoId } from './types';
+import { computeTotals, formatDuration, itemsForQueueListView, normalizeQueueListView } from './queue-engine';
 
 export interface QueueListCallbacks {
   onReorder: (orderedIds: VideoId[]) => void;
   onRemove: (id: VideoId) => void;
-  onPlayNow: (id: VideoId) => void;
+  onPlayNow: (id: VideoId, view: QueueListView) => void;
   onClearPlayed: () => void;
-  onMove: (id: VideoId, target: MoveTarget) => void;
+  onViewChange: (view: QueueListView) => void;
 }
+
+const QUEUE_LIST_TABS: Array<[QueueListView, string]> = [
+  ['all', 'All'],
+  ['short', 'Short'],
+  ['long', 'Long'],
+  ['essays', 'Essays']
+];
 
 function totalsLabel(totals: ReturnType<typeof computeTotals>): string {
   const total = `${formatDuration(totals.totalSeconds)}${
@@ -27,16 +34,34 @@ function totalsLabel(totals: ReturnType<typeof computeTotals>): string {
  */
 export function renderQueueList(container: HTMLElement, queue: ActiveQueue, callbacks: QueueListCallbacks): void {
   container.innerHTML = '';
+  const view = normalizeQueueListView(queue.selectedView);
+
+  const tabs = document.createElement('div');
+  tabs.className = 'yqm-queue-tabs';
+  tabs.setAttribute('role', 'tablist');
+  QUEUE_LIST_TABS.forEach(([tabView, label]) => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'yqm-queue-tab';
+    tab.textContent = label;
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-selected', String(tabView === view));
+    if (tabView === view) tab.classList.add('selected');
+    tab.addEventListener('click', () => callbacks.onViewChange(tabView));
+    tabs.appendChild(tab);
+  });
+  container.appendChild(tabs);
 
   const totalsEl = document.createElement('div');
   totalsEl.className = 'yqm-totals';
-  totalsEl.textContent = totalsLabel(computeTotals(queue));
+  totalsEl.textContent = totalsLabel(computeTotals(queue, view));
   container.appendChild(totalsEl);
 
-  if (queue.items.length === 0) {
+  const sorted = itemsForQueueListView(queue, view);
+  if (sorted.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'yqm-empty-state';
-    empty.textContent = 'Queue is empty';
+    empty.textContent = view === 'all' ? 'Queue is empty' : 'No videos in this list';
     container.appendChild(empty);
     return;
   }
@@ -48,7 +73,6 @@ export function renderQueueList(container: HTMLElement, queue: ActiveQueue, call
   clearButton.addEventListener('click', () => callbacks.onClearPlayed());
   container.appendChild(clearButton);
 
-  const sorted = [...queue.items].sort((a, b) => a.position - b.position);
   const list = document.createElement('ul');
   list.className = 'yqm-queue-list';
 
@@ -86,7 +110,7 @@ export function renderQueueList(container: HTMLElement, queue: ActiveQueue, call
     moveControls.className = 'yqm-move-controls';
     const isFirst = index === 0;
     const isLast = index === sorted.length - 1;
-    const moveButtons: Array<[MoveTarget, string, string, boolean]> = [
+    const moveButtons: Array<[string, string, string, boolean]> = [
       ['start', '⤒', 'Move to start', isFirst],
       ['up', '▲', 'Move up', isFirst],
       ['down', '▼', 'Move down', isLast],
@@ -101,7 +125,13 @@ export function renderQueueList(container: HTMLElement, queue: ActiveQueue, call
       button.disabled = disabled;
       button.addEventListener('click', (event) => {
         event.stopPropagation();
-        callbacks.onMove(item.id, target);
+        const ids = sorted.map((queuedItem) => queuedItem.id);
+        const currentIndex = ids.indexOf(item.id);
+        const destination =
+          target === 'start' ? 0 : target === 'end' ? ids.length - 1 : target === 'up' ? currentIndex - 1 : currentIndex + 1;
+        ids.splice(currentIndex, 1);
+        ids.splice(destination, 0, item.id);
+        callbacks.onReorder(ids);
       });
       moveControls.appendChild(button);
     });
@@ -114,7 +144,7 @@ export function renderQueueList(container: HTMLElement, queue: ActiveQueue, call
     playButton.textContent = '▶';
     playButton.addEventListener('click', (event) => {
       event.stopPropagation();
-      callbacks.onPlayNow(item.id);
+      callbacks.onPlayNow(item.id, view);
     });
     li.appendChild(playButton);
 

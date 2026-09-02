@@ -71,12 +71,14 @@ describe('decideMerge', () => {
     updatedAt: 1000
   });
 
-  it('merges in remote data when remote is strictly newer, keeping local driving-tab fields', () => {
+  it('merges in remote data when remote is strictly newer, keeping local view and driving-tab fields', () => {
     const remote = { items: [makeItem({ id: 'remote-item' })], currentItemId: 'remote-item', updatedAt: 2000 };
     const merged = decideMerge(local, remote);
     expect(merged).toEqual({
       items: remote.items,
       currentItemId: 'remote-item',
+      selectedView: 'all',
+      playbackView: 'all',
       drivingTabId: 42,
       drivingWindowId: 7,
       updatedAt: 2000

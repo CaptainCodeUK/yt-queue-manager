@@ -61,6 +61,8 @@ importButton.addEventListener('click', async () => {
   await setActiveQueue({
     items: parsed.items,
     currentItemId: parsed.currentItemId,
+    selectedView: 'all',
+    playbackView: 'all',
     drivingTabId: null,
     drivingWindowId: null,
     updatedAt: Date.now()

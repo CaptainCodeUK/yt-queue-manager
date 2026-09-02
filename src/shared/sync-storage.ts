@@ -110,6 +110,8 @@ export function decideMerge(local: ActiveQueue, remote: RemoteQueue): ActiveQueu
   return {
     items: remote.items,
     currentItemId: remote.currentItemId,
+    selectedView: local.selectedView ?? 'all',
+    playbackView: local.playbackView ?? 'all',
     drivingTabId: local.drivingTabId,
     drivingWindowId: local.drivingWindowId,
     updatedAt: remote.updatedAt
@@ -246,6 +248,8 @@ async function applyIncomingSync(): Promise<void> {
     : {
         items: remote.items,
         currentItemId: remote.currentItemId,
+      selectedView: 'all',
+      playbackView: 'all',
         drivingTabId: null,
         drivingWindowId: null,
         updatedAt: remote.updatedAt

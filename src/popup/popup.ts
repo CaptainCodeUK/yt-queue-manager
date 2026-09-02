@@ -1,5 +1,5 @@
 import { getActiveQueue, subscribe, updateActiveQueue, getSavedPlaylists, setSavedPlaylists } from '../shared/storage';
-import { removeItem, reorder, clearPlayed, toSavedPlaylist, loadPlaylist, clearActiveQueue, moveItem } from '../shared/queue-engine';
+import { clearActiveQueue, clearPlayed, loadPlaylist, removeItem, reorderInQueueListView, toSavedPlaylist } from '../shared/queue-engine';
 import { renderQueueList } from '../shared/queue-list-view';
 import { sendMessage } from '../shared/messaging';
 import { ActiveQueue, SavedPlaylist } from '../shared/types';
@@ -12,11 +12,11 @@ const settingsButton = document.getElementById('settings-button') as HTMLButtonE
 
 function renderQueue(queue: ActiveQueue): void {
   renderQueueList(queueSection, queue, {
-    onReorder: (orderedIds) => void updateActiveQueue((q) => reorder(q, orderedIds)),
+    onReorder: (orderedIds) => void updateActiveQueue((q) => reorderInQueueListView(q, orderedIds, q.selectedView ?? 'all')),
     onRemove: (id) => void updateActiveQueue((q) => removeItem(q, id)),
-    onPlayNow: (id) => void sendMessage({ type: 'navigateToVideo', videoId: id }),
+    onPlayNow: (id, view) => void sendMessage({ type: 'navigateToVideo', videoId: id, playbackView: view }),
     onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q)),
-    onMove: (id, target) => void updateActiveQueue((q) => moveItem(q, id, target))
+    onViewChange: (selectedView) => void updateActiveQueue((q) => ({ ...q, selectedView }))
   });
   queueSection.querySelector('.yqm-queue-item.current')?.scrollIntoView({ block: 'nearest' });
 }
@@ -48,7 +48,9 @@ function renderPlaylists(playlists: SavedPlaylist[]): void {
     const loadButton = document.createElement('button');
     loadButton.type = 'button';
     loadButton.textContent = 'Load';
-    loadButton.addEventListener('click', () => void updateActiveQueue(() => loadPlaylist(playlist)));
+    loadButton.addEventListener('click', () =>
+      void updateActiveQueue((queue) => loadPlaylist(playlist, queue.selectedView ?? 'all'))
+    );
     li.appendChild(loadButton);
 
     const renameButton = document.createElement('button');
