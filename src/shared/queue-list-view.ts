@@ -1,5 +1,5 @@
 import { ActiveQueue, QueueListView, VideoId } from './types';
-import { computeTotals, formatDuration, itemsForQueueListView, normalizeQueueListView } from './queue-engine';
+import { computeTotals, formatDuration, itemsForQueueListView, normalizeQueueListView, PlaylistDurationWindows } from './queue-engine';
 
 export interface QueueListCallbacks {
   onReorder: (orderedIds: VideoId[]) => void;
@@ -32,7 +32,12 @@ function totalsLabel(totals: ReturnType<typeof computeTotals>): string {
  * every call — list sizes are realistically in the tens of items, so
  * fine-grained diffing isn't worth the complexity.
  */
-export function renderQueueList(container: HTMLElement, queue: ActiveQueue, callbacks: QueueListCallbacks): void {
+export function renderQueueList(
+  container: HTMLElement,
+  queue: ActiveQueue,
+  callbacks: QueueListCallbacks,
+  windows: PlaylistDurationWindows
+): void {
   container.innerHTML = '';
   const view = normalizeQueueListView(queue.selectedView);
 
@@ -54,10 +59,10 @@ export function renderQueueList(container: HTMLElement, queue: ActiveQueue, call
 
   const totalsEl = document.createElement('div');
   totalsEl.className = 'yqm-totals';
-  totalsEl.textContent = totalsLabel(computeTotals(queue, view));
+  totalsEl.textContent = totalsLabel(computeTotals(queue, view, windows));
   container.appendChild(totalsEl);
 
-  const sorted = itemsForQueueListView(queue, view);
+  const sorted = itemsForQueueListView(queue, view, windows);
   if (sorted.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'yqm-empty-state';

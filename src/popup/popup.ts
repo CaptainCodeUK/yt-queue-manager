@@ -1,23 +1,34 @@
-import { getActiveQueue, subscribe, updateActiveQueue, getSavedPlaylists, setSavedPlaylists } from '../shared/storage';
-import { clearActiveQueue, clearPlayed, loadPlaylist, removeItem, reorderInQueueListView, toSavedPlaylist } from '../shared/queue-engine';
+import { getActiveQueue, getSettings, subscribe, updateActiveQueue, getSavedPlaylists, setSavedPlaylists } from '../shared/storage';
+import {
+  clearActiveQueue,
+  clearPlayed,
+  loadPlaylist,
+  normalizePlaylistDurationWindows,
+  PlaylistDurationWindows,
+  removeItem,
+  reorderInQueueListView,
+  toSavedPlaylist
+} from '../shared/queue-engine';
 import { renderQueueList } from '../shared/queue-list-view';
 import { sendMessage } from '../shared/messaging';
-import { ActiveQueue, SavedPlaylist } from '../shared/types';
+import { ActiveQueue, defaultSettings, SavedPlaylist } from '../shared/types';
 
 const queueSection = document.getElementById('queue-section')!;
 const playlistsSection = document.getElementById('playlists-section')!;
 const saveButton = document.getElementById('save-playlist-button') as HTMLButtonElement;
 const clearQueueButton = document.getElementById('clear-queue-button') as HTMLButtonElement;
 const settingsButton = document.getElementById('settings-button') as HTMLButtonElement;
+let playlistWindows: PlaylistDurationWindows = normalizePlaylistDurationWindows(defaultSettings());
 
 function renderQueue(queue: ActiveQueue): void {
   renderQueueList(queueSection, queue, {
-    onReorder: (orderedIds) => void updateActiveQueue((q) => reorderInQueueListView(q, orderedIds, q.selectedView ?? 'all')),
+    onReorder: (orderedIds) =>
+      void updateActiveQueue((q) => reorderInQueueListView(q, orderedIds, q.selectedView ?? 'all', playlistWindows)),
     onRemove: (id) => void updateActiveQueue((q) => removeItem(q, id)),
     onPlayNow: (id, view) => void sendMessage({ type: 'navigateToVideo', videoId: id, playbackView: view }),
     onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q)),
     onViewChange: (selectedView) => void updateActiveQueue((q) => ({ ...q, selectedView }))
-  });
+  }, playlistWindows);
   queueSection.querySelector('.yqm-queue-item.current')?.scrollIntoView({ block: 'nearest' });
 }
 
@@ -107,6 +118,14 @@ settingsButton.addEventListener('click', () => {
 
 getActiveQueue().then(renderQueue);
 subscribe('activeQueue', renderQueue);
+getSettings().then((settings) => {
+  playlistWindows = normalizePlaylistDurationWindows(settings);
+  return getActiveQueue().then(renderQueue);
+});
+subscribe('settings', (settings) => {
+  playlistWindows = normalizePlaylistDurationWindows(settings);
+  void getActiveQueue().then(renderQueue);
+});
 
 getSavedPlaylists().then(renderPlaylists);
 subscribe('savedPlaylists', renderPlaylists);

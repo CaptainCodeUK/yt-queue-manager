@@ -1,14 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
   advance,
+  computeTotals,
   isInQueueListView,
   itemsForQueueListView,
+  normalizePlaylistDurationWindows,
   nextUnplayed,
   previousItem,
   reorderInQueueListView,
   addItemNext,
   moveItem,
-  loadPlaylist
+  loadPlaylist,
+  markPlayedByIds
 } from './queue-engine';
 import { ActiveQueue, QueueItem, emptyActiveQueue } from './types';
 
@@ -111,6 +114,29 @@ describe('previousItem', () => {
   });
 });
 
+describe('markPlayedByIds', () => {
+  it('marks matching unplayed items once and preserves unrelated items', () => {
+    const queue = makeQueue(['a', 'b', 'c'], 'b');
+    queue.items[1].played = true;
+    const result = markPlayedByIds(queue, ['a', 'a', 'b', 'missing']);
+
+    expect(result.markedCount).toBe(1);
+    expect(result.queue.items.map((item) => item.played)).toEqual([true, true, false]);
+    expect(result.queue.items[0]).toMatchObject({ id: 'a', title: 'A video title', position: 0 });
+    expect(result.queue.currentItemId).toBe('b');
+  });
+
+  it('is idempotent when applied more than once', () => {
+    const queue = makeQueue(['a', 'b']);
+    const first = markPlayedByIds(queue, ['a', 'b']);
+    const second = markPlayedByIds(first.queue, ['a', 'b']);
+
+    expect(first.markedCount).toBe(2);
+    expect(second.markedCount).toBe(0);
+    expect(second.queue).toEqual(first.queue);
+  });
+});
+
 describe('dynamic queue list views', () => {
   it('classifies exact duration boundaries and unknown videos', () => {
     expect(isInQueueListView(makeItem({ durationSeconds: null }), 'short')).toBe(true);
@@ -118,6 +144,19 @@ describe('dynamic queue list views', () => {
     expect(isInQueueListView(makeItem({ durationSeconds: 600 }), 'long')).toBe(true);
     expect(isInQueueListView(makeItem({ durationSeconds: 3599 }), 'long')).toBe(true);
     expect(isInQueueListView(makeItem({ durationSeconds: 3600 }), 'essays')).toBe(true);
+  });
+
+  it('uses configured duration boundaries and normalizes invalid values', () => {
+    const windows = normalizePlaylistDurationWindows({ shortPlaylistMaxMinutes: 5, essaysPlaylistMinMinutes: 30 });
+    expect(isInQueueListView(makeItem({ durationSeconds: null }), 'short', windows)).toBe(true);
+    expect(isInQueueListView(makeItem({ durationSeconds: 299 }), 'short', windows)).toBe(true);
+    expect(isInQueueListView(makeItem({ durationSeconds: 300 }), 'long', windows)).toBe(true);
+    expect(isInQueueListView(makeItem({ durationSeconds: 1799 }), 'long', windows)).toBe(true);
+    expect(isInQueueListView(makeItem({ durationSeconds: 1800 }), 'essays', windows)).toBe(true);
+    expect(normalizePlaylistDurationWindows({ shortPlaylistMaxMinutes: 0, essaysPlaylistMinMinutes: 1 })).toEqual({
+      shortMaxSeconds: 60,
+      essaysMinSeconds: 120
+    });
   });
 
   it('keeps canonical order when filtering and reorders only matching slots', () => {
@@ -145,6 +184,18 @@ describe('dynamic queue list views', () => {
     expect(nextUnplayed(queue, 'a', 'short')?.id).toBe('d');
     expect(previousItem(queue, 'd', 'short')?.id).toBe('c');
     expect(advance(queue, 'a', 'short').next?.id).toBe('d');
+  });
+
+  it('filters and navigates using configured duration boundaries', () => {
+    const queue = makeQueue(['a', 'b', 'c'], 'a');
+    queue.items[0].durationSeconds = 120;
+    queue.items[1].durationSeconds = 600;
+    queue.items[2].durationSeconds = 2100;
+    const windows = normalizePlaylistDurationWindows({ shortPlaylistMaxMinutes: 5, essaysPlaylistMinMinutes: 30 });
+
+    expect(itemsForQueueListView(queue, 'long', windows).map((item) => item.id)).toEqual(['b']);
+    expect(nextUnplayed(queue, 'a', 'essays', windows)?.id).toBe('c');
+    expect(computeTotals(queue, 'long', windows)).toMatchObject({ totalSeconds: 600, remainingSeconds: 600 });
   });
 
   it('keeps the selected list when loading a saved playlist', () => {

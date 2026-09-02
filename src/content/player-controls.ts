@@ -1,6 +1,13 @@
-import { getActiveQueue, subscribe, updateActiveQueue } from '../shared/storage';
-import { advance, nextUnplayed, normalizeQueueListView, previousItem } from '../shared/queue-engine';
-import { ActiveQueue } from '../shared/types';
+import { getActiveQueue, getSettings, subscribe, updateActiveQueue } from '../shared/storage';
+import {
+  advance,
+  nextUnplayed,
+  normalizePlaylistDurationWindows,
+  normalizeQueueListView,
+  PlaylistDurationWindows,
+  previousItem
+} from '../shared/queue-engine';
+import { ActiveQueue, defaultSettings } from '../shared/types';
 import { watchUrl } from '../shared/youtube-parsing';
 import { spaNavigate } from './navigation';
 
@@ -15,6 +22,7 @@ let nextButton: HTMLButtonElement | null = null;
 let playerObserver: MutationObserver | null = null;
 let subscribed = false;
 let latestQueue: ActiveQueue | null = null;
+let playlistWindows: PlaylistDurationWindows = normalizePlaylistDurationWindows(defaultSettings());
 
 function createButton(className: string, glyph: string, label: string): HTMLButtonElement {
   const button = document.createElement('button');
@@ -28,16 +36,17 @@ function createButton(className: string, glyph: string, label: string): HTMLButt
 
 async function goToNext(): Promise<void> {
   const queue = await getActiveQueue();
+  const windows = normalizePlaylistDurationWindows(await getSettings());
   const playbackView = normalizeQueueListView(queue.playbackView);
   const current = queue.currentItemId;
   if (!current) {
-    const first = nextUnplayed(queue, null, playbackView);
+    const first = nextUnplayed(queue, null, playbackView, windows);
     if (!first) return;
     await updateActiveQueue((q) => ({ ...q, currentItemId: first.id }));
     spaNavigate(watchUrl(first.id));
     return;
   }
-  const { queue: updated, next } = advance(queue, current, playbackView);
+  const { queue: updated, next } = advance(queue, current, playbackView, windows);
   if (!next) return;
   await updateActiveQueue(() => updated);
   spaNavigate(watchUrl(next.id));
@@ -50,7 +59,8 @@ async function goToPrevious(): Promise<void> {
     return;
   }
   const queue = await getActiveQueue();
-  const previous = previousItem(queue, queue.currentItemId, normalizeQueueListView(queue.playbackView));
+  const windows = normalizePlaylistDurationWindows(await getSettings());
+  const previous = previousItem(queue, queue.currentItemId, normalizeQueueListView(queue.playbackView), windows);
   if (!previous) return;
   await updateActiveQueue((q) => ({
     ...q,
@@ -72,7 +82,8 @@ function applyQueueState(queue: ActiveQueue): void {
   // Previous also restarts the current video, so it stays enabled whenever
   // a queue exists; only forward movement can genuinely run out of targets.
   prevButton.disabled = false;
-  nextButton.disabled = nextUnplayed(queue, queue.currentItemId, normalizeQueueListView(queue.playbackView)) === null;
+  nextButton.disabled =
+    nextUnplayed(queue, queue.currentItemId, normalizeQueueListView(queue.playbackView), playlistWindows) === null;
 }
 
 function mount(): boolean {
@@ -128,5 +139,13 @@ export function ensurePlayerQueueButtons(): void {
     subscribed = true;
     void getActiveQueue().then(applyQueueState);
     subscribe('activeQueue', applyQueueState);
+    void getSettings().then((settings) => {
+      playlistWindows = normalizePlaylistDurationWindows(settings);
+      if (latestQueue) applyQueueState(latestQueue);
+    });
+    subscribe('settings', (settings) => {
+      playlistWindows = normalizePlaylistDurationWindows(settings);
+      if (latestQueue) applyQueueState(latestQueue);
+    });
   }
 }

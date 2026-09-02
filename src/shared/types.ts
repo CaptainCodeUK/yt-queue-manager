@@ -38,8 +38,11 @@ export interface SavedPlaylist {
 export interface Settings {
   autoAdvance: boolean;
   watchedThresholdPercent: number;
+  shortPlaylistMaxMinutes: number;
+  essaysPlaylistMinMinutes: number;
   suppressNativeQueueUI: boolean;
   experimentalSync: boolean;
+  historySyncLookbackDays: 7 | 30 | 90;
 }
 
 export interface StorageSchema {
@@ -65,7 +68,10 @@ export function defaultSettings(): Settings {
   return {
     autoAdvance: true,
     watchedThresholdPercent: 95,
+    shortPlaylistMaxMinutes: 10,
+    essaysPlaylistMinMinutes: 60,
     suppressNativeQueueUI: true,
-    experimentalSync: false
+    experimentalSync: false,
+    historySyncLookbackDays: 30
   };
 }

@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>YouTube Queue Manager Settings</title>
     <link rel="stylesheet" href="settings.css" />
   </head>
@@ -17,6 +18,35 @@
         <p class="yqm-settings-caption">
           A queued video is marked as watched once playback reaches this percentage. Auto-advance
           always waits for the video to finish playing.
+        </p>
+      </div>
+      <div class="yqm-settings-section">
+        <div class="yqm-settings-section-title">Playlist duration windows</div>
+        <label class="yqm-settings-row" for="short-playlist-max-minutes-input">
+          Short videos under
+          <input type="number" id="short-playlist-max-minutes-input" min="1" step="1" class="yqm-threshold-input" />
+          minutes
+        </label>
+        <label class="yqm-settings-row yqm-duration-window-row" for="essays-playlist-min-minutes-input">
+          Essays from
+          <input type="number" id="essays-playlist-min-minutes-input" min="2" step="1" class="yqm-threshold-input" />
+          minutes
+        </label>
+        <p class="yqm-settings-caption">
+          Long videos fall between these limits. Videos without a known duration stay in Short.
+        </p>
+      </div>
+      <div class="yqm-settings-section">
+        <label class="yqm-settings-row" for="history-lookback-select">
+          History sync lookback
+          <select id="history-lookback-select" class="yqm-history-lookback-select">
+            <option value="7">7 days</option>
+            <option value="30">30 days</option>
+            <option value="90">90 days</option>
+          </select>
+        </label>
+        <p class="yqm-settings-caption">
+          Choose how far back the History-page sync should look when YouTube exposes a verifiable timestamp.
         </p>
       </div>
       <div class="yqm-settings-section">

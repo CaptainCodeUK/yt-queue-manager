@@ -1,6 +1,27 @@
-import { ActiveQueue, QueueItem, QueueListView, SavedPlaylist, VideoId, emptyActiveQueue } from './types';
+import { ActiveQueue, QueueItem, QueueListView, SavedPlaylist, Settings, VideoId, defaultSettings, emptyActiveQueue } from './types';
 
 export type NewQueueItemInput = Omit<QueueItem, 'played' | 'addedAt' | 'position'>;
+
+export interface PlaylistDurationWindows {
+  shortMaxSeconds: number;
+  essaysMinSeconds: number;
+}
+
+export function normalizePlaylistDurationWindows(
+  settings: Pick<Settings, 'shortPlaylistMaxMinutes' | 'essaysPlaylistMinMinutes'> = defaultSettings()
+): PlaylistDurationWindows {
+  const defaultValues = defaultSettings();
+  const shortMinutes = Number.isFinite(settings.shortPlaylistMaxMinutes)
+    ? Math.max(1, Math.round(settings.shortPlaylistMaxMinutes))
+    : defaultValues.shortPlaylistMaxMinutes;
+  const essaysMinutes = Number.isFinite(settings.essaysPlaylistMinMinutes)
+    ? Math.max(shortMinutes + 1, Math.round(settings.essaysPlaylistMinMinutes))
+    : Math.max(shortMinutes + 1, defaultValues.essaysPlaylistMinMinutes);
+  return {
+    shortMaxSeconds: shortMinutes * 60,
+    essaysMinSeconds: essaysMinutes * 60
+  };
+}
 
 function nextPosition(items: QueueItem[]): number {
   return items.reduce((max, item) => Math.max(max, item.position), -1) + 1;
@@ -14,17 +35,25 @@ export function normalizeQueueListView(view: QueueListView | undefined): QueueLi
   return view ?? 'all';
 }
 
-export function isInQueueListView(item: QueueItem, view: QueueListView): boolean {
+export function isInQueueListView(
+  item: QueueItem,
+  view: QueueListView,
+  windows: PlaylistDurationWindows = normalizePlaylistDurationWindows()
+): boolean {
   if (view === 'all') return true;
   const durationSeconds = item.durationSeconds;
-  if (view === 'short') return durationSeconds === null || durationSeconds < 600;
+  if (view === 'short') return durationSeconds === null || durationSeconds < windows.shortMaxSeconds;
   if (durationSeconds === null) return false;
-  if (view === 'long') return durationSeconds >= 600 && durationSeconds < 3600;
-  return durationSeconds >= 3600;
+  if (view === 'long') return durationSeconds >= windows.shortMaxSeconds && durationSeconds < windows.essaysMinSeconds;
+  return durationSeconds >= windows.essaysMinSeconds;
 }
 
-export function itemsForQueueListView(queue: ActiveQueue, view: QueueListView): QueueItem[] {
-  return sortedByPosition(queue.items).filter((item) => isInQueueListView(item, view));
+export function itemsForQueueListView(
+  queue: ActiveQueue,
+  view: QueueListView,
+  windows?: PlaylistDurationWindows
+): QueueItem[] {
+  return sortedByPosition(queue.items).filter((item) => isInQueueListView(item, view, windows));
 }
 
 /** Adds a video to the queue. No-op if the video is already present. */
@@ -99,11 +128,12 @@ export function clearPlayed(queue: ActiveQueue): ActiveQueue {
 export function reorderInQueueListView(
   queue: ActiveQueue,
   orderedIds: VideoId[],
-  view: QueueListView
+  view: QueueListView,
+  windows?: PlaylistDurationWindows
 ): ActiveQueue {
   if (view === 'all') return reorder(queue, orderedIds);
 
-  const visibleItems = itemsForQueueListView(queue, view);
+  const visibleItems = itemsForQueueListView(queue, view, windows);
   const visibleById = new Map(visibleItems.map((item) => [item.id, item]));
   const reorderedVisible = orderedIds.flatMap((id) => {
     const item = visibleById.get(id);
@@ -115,7 +145,7 @@ export function reorderInQueueListView(
 
   let visibleIndex = 0;
   const items = sortedByPosition(queue.items).map((item, index) => ({
-    ...(isInQueueListView(item, view) ? reorderedVisible[visibleIndex++] : item),
+    ...(isInQueueListView(item, view, windows) ? reorderedVisible[visibleIndex++] : item),
     position: index
   }));
   return { ...queue, items };
@@ -124,6 +154,21 @@ export function reorderInQueueListView(
 export function markPlayed(queue: ActiveQueue, id: VideoId, played = true): ActiveQueue {
   const items = queue.items.map((item) => (item.id === id ? { ...item, played } : item));
   return { ...queue, items };
+}
+
+/** Marks matching queue items played and reports how many changed state. */
+export function markPlayedByIds(queue: ActiveQueue, watchedIds: Iterable<VideoId>): {
+  queue: ActiveQueue;
+  markedCount: number;
+} {
+  const watchedIdSet = new Set(watchedIds);
+  let markedCount = 0;
+  const items = queue.items.map((item) => {
+    if (item.played || !watchedIdSet.has(item.id)) return item;
+    markedCount++;
+    return { ...item, played: true };
+  });
+  return { queue: { ...queue, items }, markedCount };
 }
 
 export function updateDuration(
@@ -161,9 +206,10 @@ export function reorder(queue: ActiveQueue, orderedIds: VideoId[]): ActiveQueue 
 export function nextUnplayed(
   queue: ActiveQueue,
   afterId: VideoId | null,
-  view: QueueListView = 'all'
+  view: QueueListView = 'all',
+  windows?: PlaylistDurationWindows
 ): QueueItem | null {
-  const ordered = itemsForQueueListView(queue, view);
+  const ordered = itemsForQueueListView(queue, view, windows);
   const startIndex = afterId ? ordered.findIndex((item) => item.id === afterId) : -1;
   const searchFrom = startIndex === -1 ? 0 : startIndex + 1;
   for (let i = searchFrom; i < ordered.length; i++) {
@@ -176,9 +222,10 @@ export function nextUnplayed(
 export function previousItem(
   queue: ActiveQueue,
   beforeId: VideoId | null,
-  view: QueueListView = 'all'
+  view: QueueListView = 'all',
+  windows?: PlaylistDurationWindows
 ): QueueItem | null {
-  const ordered = itemsForQueueListView(queue, view);
+  const ordered = itemsForQueueListView(queue, view, windows);
   if (ordered.length === 0) return null;
   if (!beforeId) return null;
   const index = ordered.findIndex((item) => item.id === beforeId);
@@ -190,10 +237,11 @@ export function previousItem(
 export function advance(
   queue: ActiveQueue,
   finishedItemId: VideoId,
-  view: QueueListView = 'all'
+  view: QueueListView = 'all',
+  windows?: PlaylistDurationWindows
 ): { queue: ActiveQueue; next: QueueItem | null } {
   const played = markPlayed(queue, finishedItemId, true);
-  const next = nextUnplayed(played, finishedItemId, view);
+  const next = nextUnplayed(played, finishedItemId, view, windows);
   return { queue: { ...played, currentItemId: next?.id ?? null }, next };
 }
 
@@ -204,8 +252,12 @@ export interface QueueTotals {
   remainingUnknownCount: number;
 }
 
-export function computeTotals(queue: ActiveQueue, view: QueueListView = 'all'): QueueTotals {
-  const ordered = itemsForQueueListView(queue, view);
+export function computeTotals(
+  queue: ActiveQueue,
+  view: QueueListView = 'all',
+  windows?: PlaylistDurationWindows
+): QueueTotals {
+  const ordered = itemsForQueueListView(queue, view, windows);
   let totalSeconds = 0;
   let totalUnknownCount = 0;
   let remainingSeconds = 0;

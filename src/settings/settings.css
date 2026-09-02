@@ -31,6 +31,17 @@ body {
   border-radius: 4px;
 }
 
+.yqm-duration-window-row {
+  margin-top: 8px;
+}
+
+.yqm-history-lookback-select {
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #d3d3d3;
+  border-radius: 4px;
+}
+
 .yqm-settings-caption {
   color: #606060;
   font-size: 12px;

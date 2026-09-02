@@ -1,9 +1,13 @@
 import { getActiveQueue, getSettings, setActiveQueue, setSettings } from '../shared/storage';
 import { sendMessage } from '../shared/messaging';
 import { buildQueueExportText, parseQueueExport } from '../shared/queue-export';
+import { normalizePlaylistDurationWindows } from '../shared/queue-engine';
 
 const watchedThresholdInput = document.getElementById('watched-threshold-input') as HTMLInputElement;
+const shortPlaylistMaxMinutesInput = document.getElementById('short-playlist-max-minutes-input') as HTMLInputElement;
+const essaysPlaylistMinMinutesInput = document.getElementById('essays-playlist-min-minutes-input') as HTMLInputElement;
 const syncToggle = document.getElementById('experimental-sync-toggle') as HTMLInputElement;
+const historyLookbackSelect = document.getElementById('history-lookback-select') as HTMLSelectElement;
 const syncNowButton = document.getElementById('sync-now-button') as HTMLButtonElement;
 const syncNowStatus = document.getElementById('sync-now-status')!;
 
@@ -18,9 +22,35 @@ function normalizedWatchedThresholdPercent(value: number): number {
   return Math.min(100, Math.max(1, Math.round(value)));
 }
 
+function normalizedHistoryLookbackDays(value: number): 7 | 30 | 90 {
+  return value === 7 || value === 90 ? value : 30;
+}
+
+function normalizedPlaylistDurationMinutes(shortMinutes: number, essaysMinutes: number): {
+  shortPlaylistMaxMinutes: number;
+  essaysPlaylistMinMinutes: number;
+} {
+  const windows = normalizePlaylistDurationWindows({
+    shortPlaylistMaxMinutes: shortMinutes,
+    essaysPlaylistMinMinutes: essaysMinutes
+  });
+  return {
+    shortPlaylistMaxMinutes: windows.shortMaxSeconds / 60,
+    essaysPlaylistMinMinutes: windows.essaysMinSeconds / 60
+  };
+}
+
+function setPlaylistDurationInputValues(shortMinutes: number, essaysMinutes: number): void {
+  const normalized = normalizedPlaylistDurationMinutes(shortMinutes, essaysMinutes);
+  shortPlaylistMaxMinutesInput.value = String(normalized.shortPlaylistMaxMinutes);
+  essaysPlaylistMinMinutesInput.value = String(normalized.essaysPlaylistMinMinutes);
+}
+
 getSettings().then((settings) => {
   watchedThresholdInput.value = String(normalizedWatchedThresholdPercent(settings.watchedThresholdPercent));
+  setPlaylistDurationInputValues(settings.shortPlaylistMaxMinutes, settings.essaysPlaylistMinMinutes);
   syncToggle.checked = settings.experimentalSync;
+  historyLookbackSelect.value = String(normalizedHistoryLookbackDays(settings.historySyncLookbackDays));
 });
 
 watchedThresholdInput.addEventListener('change', async () => {
@@ -30,10 +60,30 @@ watchedThresholdInput.addEventListener('change', async () => {
   await setSettings({ ...current, watchedThresholdPercent: threshold });
 });
 
+async function savePlaylistDurationWindows(): Promise<void> {
+  const current = await getSettings();
+  const normalized = normalizedPlaylistDurationMinutes(
+    Number(shortPlaylistMaxMinutesInput.value),
+    Number(essaysPlaylistMinMinutesInput.value)
+  );
+  setPlaylistDurationInputValues(normalized.shortPlaylistMaxMinutes, normalized.essaysPlaylistMinMinutes);
+  await setSettings({ ...current, ...normalized });
+}
+
+shortPlaylistMaxMinutesInput.addEventListener('change', () => void savePlaylistDurationWindows());
+essaysPlaylistMinMinutesInput.addEventListener('change', () => void savePlaylistDurationWindows());
+
 syncToggle.addEventListener('change', async () => {
   const current = await getSettings();
   await setSettings({ ...current, experimentalSync: syncToggle.checked });
   syncNowStatus.textContent = '';
+});
+
+historyLookbackSelect.addEventListener('change', async () => {
+  const current = await getSettings();
+  const lookbackDays = normalizedHistoryLookbackDays(Number(historyLookbackSelect.value));
+  historyLookbackSelect.value = String(lookbackDays);
+  await setSettings({ ...current, historySyncLookbackDays: lookbackDays });
 });
 
 syncNowButton.addEventListener('click', async () => {

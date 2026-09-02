@@ -1,7 +1,14 @@
-import { getActiveQueue, subscribe, updateActiveQueue } from '../../shared/storage';
-import { clearActiveQueue, clearPlayed, removeItem, reorderInQueueListView } from '../../shared/queue-engine';
+import { getActiveQueue, getSettings, subscribe, updateActiveQueue } from '../../shared/storage';
+import {
+  clearActiveQueue,
+  clearPlayed,
+  normalizePlaylistDurationWindows,
+  PlaylistDurationWindows,
+  removeItem,
+  reorderInQueueListView
+} from '../../shared/queue-engine';
 import { renderQueueList } from '../../shared/queue-list-view';
-import { ActiveQueue } from '../../shared/types';
+import { ActiveQueue, defaultSettings } from '../../shared/types';
 import { watchUrl } from '../../shared/youtube-parsing';
 import { spaNavigate } from '../navigation';
 import panelCss from './panel.css?inline';
@@ -33,6 +40,7 @@ let latestQueue: ActiveQueue | null = null;
 let subscribed = false;
 let mastheadObserver: MutationObserver | null = null;
 let lastCurrentItemId: string | null = null;
+let playlistWindows: PlaylistDurationWindows = normalizePlaylistDurationWindows(defaultSettings());
 
 function positionDropdown(): void {
   if (!toggleButton || !dropdown) return;
@@ -75,14 +83,15 @@ function render(queue: ActiveQueue): void {
   lastCurrentItemId = queue.currentItemId;
 
   renderQueueList(listContainer, queue, {
-    onReorder: (orderedIds) => void updateActiveQueue((q) => reorderInQueueListView(q, orderedIds, q.selectedView ?? 'all')),
+    onReorder: (orderedIds) =>
+      void updateActiveQueue((q) => reorderInQueueListView(q, orderedIds, q.selectedView ?? 'all', playlistWindows)),
     onRemove: (id) => void updateActiveQueue((q) => removeItem(q, id)),
     onPlayNow: (id, playbackView) => {
       void updateActiveQueue((q) => ({ ...q, currentItemId: id, playbackView })).then(() => spaNavigate(watchUrl(id)));
     },
     onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q)),
     onViewChange: (selectedView) => void updateActiveQueue((q) => ({ ...q, selectedView }))
-  });
+  }, playlistWindows);
 
   if (currentChanged && dropdown?.classList.contains('yqm-open')) {
     scrollCurrentIntoView();
@@ -184,5 +193,13 @@ export function startPanel(): void {
     subscribed = true;
     getActiveQueue().then(render);
     subscribe('activeQueue', render);
+    getSettings().then((settings) => {
+      playlistWindows = normalizePlaylistDurationWindows(settings);
+      return getActiveQueue().then(render);
+    });
+    subscribe('settings', (settings) => {
+      playlistWindows = normalizePlaylistDurationWindows(settings);
+      void getActiveQueue().then(render);
+    });
   }
 }
