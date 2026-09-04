@@ -3,15 +3,26 @@ import { markPlayedByIds } from '../shared/queue-engine';
 import { extractVideoIdFromHref } from '../shared/youtube-parsing';
 
 const CONTROL_ID = 'yqm-history-sync-control';
+const QUEUE_HOST_ID = 'yqm-header-host';
 const BUTTON_ID = 'yqm-history-sync-button';
 const STATUS_ID = 'yqm-history-sync-status';
 const HISTORY_PATHS = new Set(['/history', '/feed/history']);
-const HISTORY_ENTRY_SELECTOR = 'ytd-item-section-renderer ytd-video-renderer, ytd-video-renderer';
+const HISTORY_CARD_SELECTOR = [
+  'ytd-video-renderer',
+  'ytd-reel-item-renderer',
+  'ytd-rich-item-renderer',
+  'ytd-grid-video-renderer',
+  'yt-lockup-view-model'
+].join(', ');
+const HISTORY_VIDEO_LINK_SELECTOR = 'a[href*="watch?v="], a[href*="/shorts/"]';
 
 interface HistoryEntry {
   videoId: string;
   watchedAt: number | null;
 }
+
+let syncButton: HTMLButtonElement | null = null;
+let syncStatus: HTMLElement | null = null;
 
 function isHistoryPage(): boolean {
   return HISTORY_PATHS.has(location.pathname);
@@ -40,10 +51,9 @@ function extractWatchedAt(entry: Element): number | null {
 
 export function collectHistoryEntries(root: ParentNode = document): HistoryEntry[] {
   const entries = new Map<string, HistoryEntry>();
-  root.querySelectorAll(HISTORY_ENTRY_SELECTOR).forEach((entry) => {
-    const anchor = entry.querySelector<HTMLAnchorElement>(
-      'a#video-title, a[href*="watch?v="], a[href*="/shorts/"]'
-    );
+  root.querySelectorAll<HTMLAnchorElement>(HISTORY_VIDEO_LINK_SELECTOR).forEach((anchor) => {
+    const entry = anchor.closest(HISTORY_CARD_SELECTOR);
+    if (!entry) return;
     const videoId = extractVideoIdFromHref(anchor?.getAttribute('href'));
     if (!videoId || entries.has(videoId)) return;
     entries.set(videoId, { videoId, watchedAt: extractWatchedAt(entry) });
@@ -52,13 +62,13 @@ export function collectHistoryEntries(root: ParentNode = document): HistoryEntry
 }
 
 function setStatus(text: string): void {
-  const status = document.getElementById(STATUS_ID);
-  if (status) status.textContent = text;
+  if (!syncStatus) return;
+  syncStatus.textContent = text;
+  syncStatus.hidden = text.length === 0;
 }
 
 function setBusy(busy: boolean): void {
-  const button = document.getElementById(BUTTON_ID) as HTMLButtonElement | null;
-  if (button) button.disabled = busy;
+  if (syncButton) syncButton.disabled = busy;
 }
 
 async function syncHistory(): Promise<void> {
@@ -102,12 +112,14 @@ async function syncHistory(): Promise<void> {
 }
 
 function findControlHost(): HTMLElement | null {
-  return document.querySelector<HTMLElement>('ytd-browse, ytd-page-manager');
+  return document.querySelector<HTMLElement>('ytd-masthead #end #buttons');
 }
 
 function ensureControl(): void {
   if (!isHistoryPage()) {
     document.getElementById(CONTROL_ID)?.remove();
+    syncButton = null;
+    syncStatus = null;
     return;
   }
   if (document.getElementById(CONTROL_ID)) return;
@@ -116,12 +128,29 @@ function ensureControl(): void {
 
   const control = document.createElement('div');
   control.id = CONTROL_ID;
-  control.innerHTML = `
-    <button id="${BUTTON_ID}" type="button">Sync watched videos</button>
-    <span id="${STATUS_ID}" role="status"></span>
+  control.style.display = 'inline-flex';
+  control.style.alignItems = 'center';
+  const shadowRoot = control.attachShadow({ mode: 'open' });
+  shadowRoot.innerHTML = `
+    <style>
+      #${BUTTON_ID} { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border: 1px solid #e0d4f7; border-radius: 18px; background: #fff; color: #5e35b1; font-family: Roboto, Arial, sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+      #${BUTTON_ID}:hover { background: #f1e9fb; }
+      #${BUTTON_ID}:disabled { opacity: 0.6; cursor: wait; }
+      #${STATUS_ID} { position: fixed; top: 72px; right: 24px; z-index: 2200; max-width: min(360px, calc(100vw - 48px)); padding: 8px 12px; border-radius: 4px; background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); color: #0f0f0f; font-family: Roboto, Arial, sans-serif; font-size: 12px; line-height: 1.4; }
+      #${STATUS_ID}[hidden] { display: none; }
+    </style>
+    <button id="${BUTTON_ID}" type="button"><span aria-hidden="true">+</span><span>Sync watched videos</span></button>
+    <span id="${STATUS_ID}" role="status" hidden></span>
   `;
-  control.querySelector<HTMLButtonElement>(`#${BUTTON_ID}`)?.addEventListener('click', () => void syncHistory());
-  host.appendChild(control);
+  syncButton = shadowRoot.querySelector<HTMLButtonElement>(`#${BUTTON_ID}`);
+  syncStatus = shadowRoot.querySelector<HTMLElement>(`#${STATUS_ID}`);
+  syncButton?.addEventListener('click', () => void syncHistory());
+  const queueHost = document.getElementById(QUEUE_HOST_ID);
+  if (queueHost?.parentElement === host) {
+    host.insertBefore(control, queueHost);
+  } else {
+    host.prepend(control);
+  }
 }
 
 export function startHistorySync(): void {
