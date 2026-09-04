@@ -56,7 +56,7 @@
   position: fixed;
   width: 360px;
   max-height: 70vh;
-  overflow-y: auto;
+  overflow: hidden;
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
@@ -83,6 +83,30 @@
   margin-bottom: 8px;
 }
 
+.yqm-duration-presets {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 8px;
+}
+
+.yqm-duration-preset {
+  flex: 1;
+  border: 1px solid #d3d3d3;
+  border-radius: 4px;
+  background: #fff;
+  color: #606060;
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 2px;
+}
+
+.yqm-duration-preset.selected {
+  border-color: #5e35b1;
+  background: #f1e9fb;
+  color: #5e35b1;
+  font-weight: 500;
+}
+
 .yqm-queue-tab {
   flex: 1;
   border: 0;
@@ -105,21 +129,14 @@
   margin-bottom: 8px;
 }
 
-.yqm-clear-played-button {
-  font-size: 12px;
-  color: #065fd4;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 0 8px;
-}
-
-.yqm-panel-toolbar {
+.yqm-queue-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 8px;
 }
 
+.yqm-clear-played-button,
 .yqm-clear-queue-button {
   font-size: 12px;
   color: #606060;
@@ -130,15 +147,24 @@
   padding: 4px 8px;
 }
 
-.yqm-clear-queue-button:hover {
+.yqm-clear-played-button:hover:not(:disabled),
+.yqm-clear-queue-button:hover:not(:disabled) {
   background: #f1e9fb;
   color: #0f0f0f;
+}
+
+.yqm-clear-played-button:disabled,
+.yqm-clear-queue-button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .yqm-queue-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  max-height: calc(70vh - 180px);
+  overflow-y: auto;
 }
 
 .yqm-queue-item {

@@ -1,4 +1,4 @@
-import { getActiveQueue, getSettings, subscribe, updateActiveQueue } from '../../shared/storage';
+import { getActiveQueue, getSettings, setSettings, subscribe, updateActiveQueue } from '../../shared/storage';
 import {
   clearActiveQueue,
   clearPlayed,
@@ -90,6 +90,13 @@ function render(queue: ActiveQueue): void {
       void updateActiveQueue((q) => ({ ...q, currentItemId: id, playbackView })).then(() => spaNavigate(watchUrl(id)));
     },
     onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q)),
+    onClearQueue: () => void updateActiveQueue(() => clearActiveQueue()),
+    onSetDurationBoundary: (boundary, minutes) => void getSettings().then((settings) =>
+      setSettings({
+        ...settings,
+        [boundary === 'short' ? 'shortPlaylistMaxMinutes' : 'essaysPlaylistMinMinutes']: minutes
+      })
+    ),
     onViewChange: (selectedView) => void updateActiveQueue((q) => ({ ...q, selectedView }))
   }, playlistWindows);
 
@@ -145,16 +152,6 @@ function mountHeaderButton(): boolean {
   dropdown = document.createElement('div');
   dropdown.className = 'yqm-dropdown';
   shadowRoot.appendChild(dropdown);
-
-  const toolbar = document.createElement('div');
-  toolbar.className = 'yqm-panel-toolbar';
-  const clearQueueButton = document.createElement('button');
-  clearQueueButton.type = 'button';
-  clearQueueButton.className = 'yqm-clear-queue-button';
-  clearQueueButton.textContent = 'Clear queue';
-  clearQueueButton.addEventListener('click', () => void updateActiveQueue(() => clearActiveQueue()));
-  toolbar.appendChild(clearQueueButton);
-  dropdown.appendChild(toolbar);
 
   listContainer = document.createElement('div');
   dropdown.appendChild(listContainer);

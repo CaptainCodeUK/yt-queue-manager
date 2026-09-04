@@ -1,5 +1,5 @@
 import { getActiveQueue, updateActiveQueue, getSettings } from '../shared/storage';
-import { advance, markPlayed, normalizeQueueListView, updateDuration } from '../shared/queue-engine';
+import { advance, markPlayed, normalizePlaylistDurationWindows, normalizeQueueListView, updateDuration } from '../shared/queue-engine';
 import { sendMessage, HEARTBEAT_INTERVAL_MS } from '../shared/messaging';
 import { ClaimDriverResponse } from '../shared/messaging';
 import { watchUrl } from '../shared/youtube-parsing';
@@ -97,7 +97,8 @@ async function handleEnded(videoId: string): Promise<void> {
   if (!(await ensureDrivingThisVideo(videoId))) return;
 
   const queue = await getActiveQueue();
-  const { queue: updated, next } = advance(queue, videoId, normalizeQueueListView(queue.playbackView));
+  const windows = normalizePlaylistDurationWindows(settings);
+  const { queue: updated, next } = advance(queue, videoId, normalizeQueueListView(queue.playbackView), windows);
   await updateActiveQueue(() => updated);
 
   disableNativeAutonav();

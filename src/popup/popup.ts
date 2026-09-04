@@ -1,4 +1,4 @@
-import { getActiveQueue, getSettings, subscribe, updateActiveQueue, getSavedPlaylists, setSavedPlaylists } from '../shared/storage';
+import { getActiveQueue, getSettings, setSettings, subscribe, updateActiveQueue, getSavedPlaylists, setSavedPlaylists } from '../shared/storage';
 import {
   clearActiveQueue,
   clearPlayed,
@@ -16,7 +16,6 @@ import { ActiveQueue, defaultSettings, SavedPlaylist } from '../shared/types';
 const queueSection = document.getElementById('queue-section')!;
 const playlistsSection = document.getElementById('playlists-section')!;
 const saveButton = document.getElementById('save-playlist-button') as HTMLButtonElement;
-const clearQueueButton = document.getElementById('clear-queue-button') as HTMLButtonElement;
 const settingsButton = document.getElementById('settings-button') as HTMLButtonElement;
 let playlistWindows: PlaylistDurationWindows = normalizePlaylistDurationWindows(defaultSettings());
 
@@ -27,6 +26,13 @@ function renderQueue(queue: ActiveQueue): void {
     onRemove: (id) => void updateActiveQueue((q) => removeItem(q, id)),
     onPlayNow: (id, view) => void sendMessage({ type: 'navigateToVideo', videoId: id, playbackView: view }),
     onClearPlayed: () => void updateActiveQueue((q) => clearPlayed(q)),
+    onClearQueue: () => void updateActiveQueue(() => clearActiveQueue()),
+    onSetDurationBoundary: (boundary, minutes) => void getSettings().then((settings) =>
+      setSettings({
+        ...settings,
+        [boundary === 'short' ? 'shortPlaylistMaxMinutes' : 'essaysPlaylistMinMinutes']: minutes
+      })
+    ),
     onViewChange: (selectedView) => void updateActiveQueue((q) => ({ ...q, selectedView }))
   }, playlistWindows);
   queueSection.querySelector('.yqm-queue-item.current')?.scrollIntoView({ block: 'nearest' });
@@ -100,8 +106,6 @@ saveButton.addEventListener('click', async () => {
   const all = await getSavedPlaylists();
   await setSavedPlaylists([...all, playlist]);
 });
-
-clearQueueButton.addEventListener('click', () => void updateActiveQueue(() => clearActiveQueue()));
 
 settingsButton.addEventListener('click', () => {
   // A detached popup-style window, not a full tab — openOptionsPage() would

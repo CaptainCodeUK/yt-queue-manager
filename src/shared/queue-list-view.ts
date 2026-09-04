@@ -6,6 +6,8 @@ export interface QueueListCallbacks {
   onRemove: (id: VideoId) => void;
   onPlayNow: (id: VideoId, view: QueueListView) => void;
   onClearPlayed: () => void;
+  onClearQueue: () => void;
+  onSetDurationBoundary: (boundary: 'short' | 'essays', minutes: number) => void;
   onViewChange: (view: QueueListView) => void;
 }
 
@@ -14,6 +16,14 @@ const QUEUE_LIST_TABS: Array<[QueueListView, string]> = [
   ['short', 'Short'],
   ['long', 'Long'],
   ['essays', 'Essays']
+];
+
+const SHORT_DURATION_PRESETS = [5, 10, 15, 20];
+const ESSAY_DURATION_PRESETS: Array<[number, string]> = [
+  [45, '45m'],
+  [60, '1h'],
+  [75, '1h 15m'],
+  [90, '1h 30m']
 ];
 
 function totalsLabel(totals: ReturnType<typeof computeTotals>): string {
@@ -57,6 +67,45 @@ export function renderQueueList(
   });
   container.appendChild(tabs);
 
+  if (view === 'short' || view === 'long') {
+    const presets = document.createElement('div');
+    presets.className = 'yqm-duration-presets';
+    const boundary = view === 'short' ? 'short' : 'essays';
+    const activeMinutes = (boundary === 'short' ? windows.shortMaxSeconds : windows.essaysMinSeconds) / 60;
+    const options = boundary === 'short'
+      ? SHORT_DURATION_PRESETS.map((minutes) => [minutes, `${minutes}m`] as const)
+      : ESSAY_DURATION_PRESETS;
+    options.forEach(([minutes, label]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'yqm-duration-preset';
+      button.textContent = label;
+      button.setAttribute('aria-pressed', String(minutes === activeMinutes));
+      if (minutes === activeMinutes) button.classList.add('selected');
+      button.addEventListener('click', () => callbacks.onSetDurationBoundary(boundary, minutes));
+      presets.appendChild(button);
+    });
+    container.appendChild(presets);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'yqm-queue-actions';
+  const clearPlayedButton = document.createElement('button');
+  clearPlayedButton.type = 'button';
+  clearPlayedButton.className = 'yqm-clear-played-button';
+  clearPlayedButton.textContent = 'Clear played';
+  clearPlayedButton.disabled = !queue.items.some((item) => item.played);
+  clearPlayedButton.addEventListener('click', () => callbacks.onClearPlayed());
+  actions.appendChild(clearPlayedButton);
+  const clearQueueButton = document.createElement('button');
+  clearQueueButton.type = 'button';
+  clearQueueButton.className = 'yqm-clear-queue-button';
+  clearQueueButton.textContent = 'Clear queue';
+  clearQueueButton.disabled = queue.items.length === 0;
+  clearQueueButton.addEventListener('click', () => callbacks.onClearQueue());
+  actions.appendChild(clearQueueButton);
+  container.appendChild(actions);
+
   const totalsEl = document.createElement('div');
   totalsEl.className = 'yqm-totals';
   totalsEl.textContent = totalsLabel(computeTotals(queue, view, windows));
@@ -70,13 +119,6 @@ export function renderQueueList(
     container.appendChild(empty);
     return;
   }
-
-  const clearButton = document.createElement('button');
-  clearButton.type = 'button';
-  clearButton.className = 'yqm-clear-played-button';
-  clearButton.textContent = 'Clear played';
-  clearButton.addEventListener('click', () => callbacks.onClearPlayed());
-  container.appendChild(clearButton);
 
   const list = document.createElement('ul');
   list.className = 'yqm-queue-list';
