@@ -30,8 +30,8 @@ body {
 }
 
 .yqm-queue-tab.selected {
-  border-bottom-color: #065fd4;
-  color: #065fd4;
+  border-bottom-color: #5e35b1;
+  color: #5e35b1;
 }
 
 .yqm-duration-presets {
@@ -52,9 +52,9 @@ body {
 }
 
 .yqm-duration-preset.selected {
-  border-color: #065fd4;
-  background: #f0f7ff;
-  color: #065fd4;
+  border-color: #5e35b1;
+  background: #f1e9fb;
+  color: #5e35b1;
   font-weight: 500;
 }
 
@@ -121,7 +121,7 @@ body {
 }
 
 .yqm-queue-item.current {
-  background-color: #f0f7ff;
+  background-color: #f1e9fb;
 }
 
 .yqm-queue-item.played {
@@ -297,4 +297,51 @@ body {
 
 .yqm-playlist-item button:hover {
   background: #efefef;
+}
+
+html[data-yqm-theme='dark'] body {
+  background: #212121;
+  color: #f1f1f1;
+}
+
+html[data-yqm-theme='dark'] .yqm-queue-tabs,
+html[data-yqm-theme='dark'] .yqm-queue-item,
+html[data-yqm-theme='dark'] .yqm-section-heading,
+html[data-yqm-theme='dark'] .yqm-playlist-item,
+html[data-yqm-theme='dark'] .yqm-footer {
+  border-color: #3f3f3f;
+}
+
+html[data-yqm-theme='dark'] .yqm-queue-tab,
+html[data-yqm-theme='dark'] .yqm-totals,
+html[data-yqm-theme='dark'] .yqm-empty-state,
+html[data-yqm-theme='dark'] .yqm-item-duration,
+html[data-yqm-theme='dark'] .yqm-play-button,
+html[data-yqm-theme='dark'] .yqm-remove-button,
+html[data-yqm-theme='dark'] .yqm-section-heading,
+html[data-yqm-theme='dark'] .yqm-footer-link {
+  color: #aaa;
+}
+
+html[data-yqm-theme='dark'] .yqm-queue-item.current,
+html[data-yqm-theme='dark'] .yqm-duration-preset.selected {
+  background: #38225c;
+}
+
+html[data-yqm-theme='dark'] .yqm-duration-preset,
+html[data-yqm-theme='dark'] .yqm-clear-played-button,
+html[data-yqm-theme='dark'] .yqm-clear-queue-button,
+html[data-yqm-theme='dark'] .yqm-toolbar button,
+html[data-yqm-theme='dark'] .yqm-playlist-item button {
+  background: #303030;
+  border-color: #555;
+  color: #f1f1f1;
+}
+
+html[data-yqm-theme='dark'] .yqm-clear-played-button:hover:not(:disabled),
+html[data-yqm-theme='dark'] .yqm-clear-queue-button:hover:not(:disabled),
+html[data-yqm-theme='dark'] .yqm-toolbar button:hover,
+html[data-yqm-theme='dark'] .yqm-playlist-item button:hover {
+  background: #454545;
+  color: #fff;
 }

@@ -4,6 +4,8 @@ export type DurationSource = 'player' | 'ytInitialData' | 'domBadge' | 'unknown'
 
 export type QueueListView = 'all' | 'short' | 'long' | 'essays';
 
+export type ThemePreference = 'site' | 'light' | 'dark';
+
 export interface QueueItem {
   id: VideoId;
   title: string;
@@ -37,6 +39,7 @@ export interface SavedPlaylist {
 
 export interface Settings {
   autoAdvance: boolean;
+  theme: ThemePreference;
   watchedThresholdPercent: number;
   shortPlaylistMaxMinutes: number;
   essaysPlaylistMinMinutes: number;
@@ -67,6 +70,7 @@ export function emptyActiveQueue(): ActiveQueue {
 export function defaultSettings(): Settings {
   return {
     autoAdvance: true,
+    theme: 'site',
     watchedThresholdPercent: 95,
     shortPlaylistMaxMinutes: 10,
     essaysPlaylistMinMinutes: 60,

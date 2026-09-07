@@ -8,7 +8,7 @@ import {
   reorderInQueueListView
 } from '../../shared/queue-engine';
 import { renderQueueList } from '../../shared/queue-list-view';
-import { ActiveQueue, defaultSettings } from '../../shared/types';
+import { ActiveQueue, defaultSettings, ThemePreference } from '../../shared/types';
 import { watchUrl } from '../../shared/youtube-parsing';
 import { spaNavigate } from '../navigation';
 import panelCss from './panel.css?inline';
@@ -41,6 +41,17 @@ let subscribed = false;
 let mastheadObserver: MutationObserver | null = null;
 let lastCurrentItemId: string | null = null;
 let playlistWindows: PlaylistDurationWindows = normalizePlaylistDurationWindows(defaultSettings());
+let themePreference: ThemePreference = 'site';
+let themeObserver: MutationObserver | null = null;
+
+function applyTheme(): void {
+  const host = document.getElementById(HOST_ID);
+  if (!host) return;
+  const resolvedTheme = themePreference === 'site'
+    ? document.documentElement.hasAttribute('dark') ? 'dark' : 'light'
+    : themePreference;
+  host.dataset.yqmTheme = resolvedTheme;
+}
 
 function positionDropdown(): void {
   if (!toggleButton || !dropdown) return;
@@ -136,6 +147,7 @@ function mountHeaderButton(): boolean {
   const style = document.createElement('style');
   style.textContent = panelCss;
   shadowRoot.appendChild(style);
+  applyTheme();
 
   toggleButton = document.createElement('button');
   toggleButton.type = 'button';
@@ -186,15 +198,24 @@ export function startPanel(): void {
     });
   }
 
+  if (!themeObserver) {
+    themeObserver = new MutationObserver(applyTheme);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['dark'] });
+  }
+
   if (!subscribed) {
     subscribed = true;
     getActiveQueue().then(render);
     subscribe('activeQueue', render);
     getSettings().then((settings) => {
+      themePreference = settings.theme;
+      applyTheme();
       playlistWindows = normalizePlaylistDurationWindows(settings);
       return getActiveQueue().then(render);
     });
     subscribe('settings', (settings) => {
+      themePreference = settings.theme;
+      applyTheme();
       playlistWindows = normalizePlaylistDurationWindows(settings);
       void getActiveQueue().then(render);
     });

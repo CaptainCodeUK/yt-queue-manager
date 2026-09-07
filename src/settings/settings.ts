@@ -1,8 +1,10 @@
 import { getActiveQueue, getSettings, setActiveQueue, setSettings } from '../shared/storage';
 import { sendMessage } from '../shared/messaging';
 import { buildQueueExportText, parseQueueExport } from '../shared/queue-export';
+import { ThemePreference } from '../shared/types';
 
 const watchedThresholdInput = document.getElementById('watched-threshold-input') as HTMLInputElement;
+const themeSelect = document.getElementById('theme-select') as HTMLSelectElement;
 const syncToggle = document.getElementById('experimental-sync-toggle') as HTMLInputElement;
 const historyLookbackSelect = document.getElementById('history-lookback-select') as HTMLSelectElement;
 const syncNowButton = document.getElementById('sync-now-button') as HTMLButtonElement;
@@ -23,10 +25,24 @@ function normalizedHistoryLookbackDays(value: number): 7 | 30 | 90 {
   return value === 7 || value === 90 ? value : 30;
 }
 
+function applyTheme(theme: ThemePreference): void {
+  const resolvedTheme = theme === 'site' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : theme === 'site' ? 'light' : theme;
+  document.documentElement.dataset.yqmTheme = resolvedTheme;
+}
+
 getSettings().then((settings) => {
+  themeSelect.value = settings.theme;
+  applyTheme(settings.theme);
   watchedThresholdInput.value = String(normalizedWatchedThresholdPercent(settings.watchedThresholdPercent));
   syncToggle.checked = settings.experimentalSync;
   historyLookbackSelect.value = String(normalizedHistoryLookbackDays(settings.historySyncLookbackDays));
+});
+
+themeSelect.addEventListener('change', async () => {
+  const current = await getSettings();
+  const theme = themeSelect.value as ThemePreference;
+  await setSettings({ ...current, theme });
+  applyTheme(theme);
 });
 
 watchedThresholdInput.addEventListener('change', async () => {

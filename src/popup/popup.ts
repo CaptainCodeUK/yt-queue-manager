@@ -11,13 +11,18 @@ import {
 } from '../shared/queue-engine';
 import { renderQueueList } from '../shared/queue-list-view';
 import { sendMessage } from '../shared/messaging';
-import { ActiveQueue, defaultSettings, SavedPlaylist } from '../shared/types';
+import { ActiveQueue, defaultSettings, SavedPlaylist, ThemePreference } from '../shared/types';
 
 const queueSection = document.getElementById('queue-section')!;
 const playlistsSection = document.getElementById('playlists-section')!;
 const saveButton = document.getElementById('save-playlist-button') as HTMLButtonElement;
 const settingsButton = document.getElementById('settings-button') as HTMLButtonElement;
 let playlistWindows: PlaylistDurationWindows = normalizePlaylistDurationWindows(defaultSettings());
+
+function applyTheme(theme: ThemePreference): void {
+  const resolvedTheme = theme === 'site' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : theme === 'site' ? 'light' : theme;
+  document.documentElement.dataset.yqmTheme = resolvedTheme;
+}
 
 function renderQueue(queue: ActiveQueue): void {
   renderQueueList(queueSection, queue, {
@@ -123,10 +128,12 @@ settingsButton.addEventListener('click', () => {
 getActiveQueue().then(renderQueue);
 subscribe('activeQueue', renderQueue);
 getSettings().then((settings) => {
+  applyTheme(settings.theme);
   playlistWindows = normalizePlaylistDurationWindows(settings);
   return getActiveQueue().then(renderQueue);
 });
 subscribe('settings', (settings) => {
+  applyTheme(settings.theme);
   playlistWindows = normalizePlaylistDurationWindows(settings);
   void getActiveQueue().then(renderQueue);
 });

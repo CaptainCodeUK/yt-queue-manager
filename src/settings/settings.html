@@ -10,6 +10,16 @@
     <div id="app">
       <h1 class="yqm-settings-title">Settings</h1>
       <div class="yqm-settings-section">
+        <label class="yqm-settings-row" for="theme-select">
+          Theme
+          <select id="theme-select" class="yqm-theme-select">
+            <option value="site">Follow site</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+      </div>
+      <div class="yqm-settings-section">
         <label class="yqm-settings-row" for="watched-threshold-input">
           Mark as watched at
           <input type="number" id="watched-threshold-input" min="1" max="100" step="1" class="yqm-threshold-input" />

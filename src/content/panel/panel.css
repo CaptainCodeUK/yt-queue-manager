@@ -266,3 +266,38 @@
   filter: grayscale(1);
   opacity: 0.6;
 }
+
+:host([data-yqm-theme='dark']) .yqm-header-button,
+:host([data-yqm-theme='dark']) .yqm-dropdown,
+:host([data-yqm-theme='dark']) .yqm-duration-preset,
+:host([data-yqm-theme='dark']) .yqm-clear-played-button,
+:host([data-yqm-theme='dark']) .yqm-clear-queue-button {
+  background: #212121;
+  border-color: #4b4b4b;
+  color: #f1f1f1;
+}
+
+:host([data-yqm-theme='dark']) .yqm-header-button:hover,
+:host([data-yqm-theme='dark']) .yqm-clear-played-button:hover:not(:disabled),
+:host([data-yqm-theme='dark']) .yqm-clear-queue-button:hover:not(:disabled) {
+  background: #303030;
+}
+
+:host([data-yqm-theme='dark']) .yqm-queue-tabs,
+:host([data-yqm-theme='dark']) .yqm-queue-item {
+  border-color: #3f3f3f;
+}
+
+:host([data-yqm-theme='dark']) .yqm-queue-tab,
+:host([data-yqm-theme='dark']) .yqm-totals,
+:host([data-yqm-theme='dark']) .yqm-empty-state,
+:host([data-yqm-theme='dark']) .yqm-item-duration,
+:host([data-yqm-theme='dark']) .yqm-play-button,
+:host([data-yqm-theme='dark']) .yqm-remove-button {
+  color: #aaa;
+}
+
+:host([data-yqm-theme='dark']) .yqm-queue-item.current,
+:host([data-yqm-theme='dark']) .yqm-duration-preset.selected {
+  background: #38225c;
+}

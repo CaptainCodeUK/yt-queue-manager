@@ -10,6 +10,10 @@ describe('defaultSettings', () => {
     expect(defaultSettings().watchedThresholdPercent).toBe(95);
   });
 
+  it('defaults theme to follow the site', () => {
+    expect(defaultSettings().theme).toBe('site');
+  });
+
   it('defaults playlist duration windows to the existing boundaries', () => {
     expect(defaultSettings()).toMatchObject({
       shortPlaylistMaxMinutes: 10,

@@ -42,6 +42,13 @@ body {
   border-radius: 4px;
 }
 
+.yqm-theme-select {
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #d3d3d3;
+  border-radius: 4px;
+}
+
 .yqm-settings-caption {
   color: #606060;
   font-size: 12px;
@@ -109,4 +116,34 @@ body {
 .yqm-footer-link:hover {
   color: #5e35b1;
   text-decoration: underline;
+}
+
+html[data-yqm-theme='dark'] body {
+  background: #212121;
+  color: #f1f1f1;
+}
+
+html[data-yqm-theme='dark'] .yqm-settings-section,
+html[data-yqm-theme='dark'] .yqm-footer {
+  border-color: #3f3f3f;
+}
+
+html[data-yqm-theme='dark'] .yqm-settings-caption,
+html[data-yqm-theme='dark'] .yqm-action-status,
+html[data-yqm-theme='dark'] .yqm-footer-link {
+  color: #aaa;
+}
+
+html[data-yqm-theme='dark'] .yqm-threshold-input,
+html[data-yqm-theme='dark'] .yqm-history-lookback-select,
+html[data-yqm-theme='dark'] .yqm-theme-select,
+html[data-yqm-theme='dark'] .yqm-import-textarea,
+html[data-yqm-theme='dark'] .yqm-action-row button {
+  background: #303030;
+  border-color: #555;
+  color: #f1f1f1;
+}
+
+html[data-yqm-theme='dark'] .yqm-action-row button:hover {
+  background: #454545;
 }
