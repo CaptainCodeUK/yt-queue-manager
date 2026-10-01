@@ -20,11 +20,14 @@ function isContextInvalidatedError(error: unknown): boolean {
   return error.message.toLowerCase().includes('extension context invalidated');
 }
 
-export function sendMessage<T = unknown>(message: ExtensionMessage): Promise<T> {
-  return chrome.runtime.sendMessage(message).catch((error: unknown) => {
-    if (isContextInvalidatedError(error)) {
-      return undefined as T;
-    }
+export async function sendMessage<T = unknown>(message: ExtensionMessage): Promise<T> {
+  // chrome.runtime.sendMessage throws synchronously (not a rejected promise)
+  // once the extension context is invalidated, so the call itself needs to
+  // be inside the try — chaining .catch() on it isn't enough.
+  try {
+    return await chrome.runtime.sendMessage(message);
+  } catch (error) {
+    if (isContextInvalidatedError(error)) return undefined as T;
     throw error;
-  });
+  }
 }

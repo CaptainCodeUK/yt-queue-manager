@@ -20,13 +20,23 @@ function findButtonsContainer(): HTMLElement | null {
   return document.querySelector<HTMLElement>('ytd-masthead #end #buttons');
 }
 
-/** Finds the "+ Create" button so our button can be inserted just before it. Fails open: returns null (caller falls back to prepending) rather than guessing at an unfamiliar element. */
+/**
+ * Finds the "+ Create" button so our button can be inserted just before it.
+ * querySelectorAll matches descendants at any depth, so the match is walked
+ * back up to the container's direct child — insertBefore throws if the
+ * reference node isn't one. Fails open: returns null (caller falls back to
+ * prepending) rather than guessing at an unfamiliar element.
+ */
 function findCreateButton(container: HTMLElement): Element | null {
   const candidates = container.querySelectorAll('ytd-button-renderer, a, button');
   for (const el of candidates) {
     const label = (el.getAttribute('aria-label') ?? el.textContent ?? '').trim();
     if (CREATE_LABEL_PATTERN.test(label)) {
-      return el.closest('ytd-button-renderer') ?? el;
+      let node: Element | null = el.closest('ytd-button-renderer') ?? el;
+      while (node && node.parentElement !== container) {
+        node = node.parentElement;
+      }
+      if (node) return node;
     }
   }
   return null;

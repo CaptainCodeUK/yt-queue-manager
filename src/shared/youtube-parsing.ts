@@ -33,6 +33,11 @@ export function getCurrentVideoId(): string | null {
   return new URLSearchParams(location.search).get('v');
 }
 
+/** Returns whether YouTube is currently playing a playlist or queue context. */
+export function hasYouTubePlaylistContext(): boolean {
+  return new URLSearchParams(location.search).has('list');
+}
+
 /**
  * Best-effort extraction of the current watch page's video metadata.
  * `ytInitialPlayerResponse` is authoritative for the currently loaded video

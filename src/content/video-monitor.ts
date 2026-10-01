@@ -2,7 +2,7 @@ import { getActiveQueue, updateActiveQueue, getSettings } from '../shared/storag
 import { advance, markPlayed, normalizePlaylistDurationWindows, normalizeQueueListView, updateDuration } from '../shared/queue-engine';
 import { sendMessage, HEARTBEAT_INTERVAL_MS } from '../shared/messaging';
 import { ClaimDriverResponse } from '../shared/messaging';
-import { watchUrl } from '../shared/youtube-parsing';
+import { hasYouTubePlaylistContext, watchUrl } from '../shared/youtube-parsing';
 import { spaNavigate } from './navigation';
 
 let myTabId: number | null = null;
@@ -92,8 +92,11 @@ async function markWatched(videoId: string): Promise<void> {
 }
 
 async function handleEnded(videoId: string): Promise<void> {
+  await markWatched(videoId);
+
   const settings = await getSettings();
   if (!settings.autoAdvance) return;
+  if (hasYouTubePlaylistContext()) return;
   if (!(await ensureDrivingThisVideo(videoId))) return;
 
   const queue = await getActiveQueue();

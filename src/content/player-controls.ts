@@ -86,6 +86,20 @@ function applyQueueState(queue: ActiveQueue): void {
     nextUnplayed(queue, queue.currentItemId, normalizeQueueListView(queue.playbackView), playlistWindows) === null;
 }
 
+/**
+ * querySelector matches descendants at any depth, so the play button isn't
+ * necessarily a direct child of controls — insertBefore throws if it isn't.
+ * Walks up to the direct child that contains it, matching the fix used for
+ * the header "+ Create" button anchor.
+ */
+function findDirectChildContaining(container: Element, descendant: Element): Element | null {
+  let node: Element | null = descendant;
+  while (node && node.parentElement !== container) {
+    node = node.parentElement;
+  }
+  return node;
+}
+
 function mount(): boolean {
   const controls = document.querySelector('.ytp-left-controls');
   const playButton = controls?.querySelector('.ytp-play-button');
@@ -93,6 +107,9 @@ function mount(): boolean {
   if (controls.querySelector(`.${PREV_CLASS}`) && controls.querySelector(`.${NEXT_CLASS}`)) {
     return true;
   }
+
+  const playButtonAnchor = findDirectChildContaining(controls, playButton);
+  if (!playButtonAnchor) return false;
 
   controls.querySelectorAll(`.${PREV_CLASS}, .${NEXT_CLASS}`).forEach((el) => el.remove());
 
@@ -108,8 +125,8 @@ function mount(): boolean {
     void goToNext();
   });
 
-  controls.insertBefore(prevButton, playButton);
-  playButton.after(nextButton);
+  controls.insertBefore(prevButton, playButtonAnchor);
+  playButtonAnchor.after(nextButton);
 
   if (latestQueue) applyQueueState(latestQueue);
   return true;
